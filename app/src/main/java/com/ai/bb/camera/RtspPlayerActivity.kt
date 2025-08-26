@@ -24,8 +24,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
@@ -37,6 +45,14 @@ import com.alexvas.rtsp.widget.RtspDataListener
 import com.alexvas.rtsp.widget.RtspStatusListener
 import com.alexvas.rtsp.widget.RtspSurfaceView
 import com.ai.bb.camera.ui.theme.AICameraTheme
+import kotlinx.coroutines.android.awaitFrame
+import kotlinx.coroutines.suspendCancellableCoroutine
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.Canvas
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -48,6 +64,7 @@ class RtspPlayerActivity : ComponentActivity() {
     
     private var rtspSurfaceView: RtspSurfaceView? = null
     private var isConnected = false
+    private var detector: OnnxCircleDetector? = null
     
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -71,6 +88,7 @@ class RtspPlayerActivity : ComponentActivity() {
         
         // Set fullscreen and landscape mode
         setupFullscreenLandscape()
+        detector = OnnxCircleDetector(this)
         
         setContent {
             AICameraTheme {
@@ -102,6 +120,13 @@ class RtspPlayerActivity : ComponentActivity() {
         var isLoading by remember { mutableStateOf(false) }
         var statusText by remember { mutableStateOf("Disconnected") }
         val context = LocalContext.current
+        var overlayBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+        var overlaySize by remember { mutableStateOf(IntSize(0, 0)) }
+        var imageScale by remember { mutableStateOf(1f) }
+        var baseScale by remember { mutableStateOf(1f) }
+        var imageOffset by remember { mutableStateOf(Offset.Zero) }
+        var showOverlayImage by remember { mutableStateOf(true) }
+        var circles by remember { mutableStateOf(listOf<OnnxCircleDetector.Circle>()) }
         
         Box(modifier = Modifier.fillMaxSize()) {
             // RTSP Surface View
@@ -182,6 +207,97 @@ class RtspPlayerActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxSize()
             )
             
+            // Overlay image and drawing (cover mode, pinch-zoom/pan)
+            if (overlayBitmap != null) {
+                val bm = overlayBitmap!!
+                val screenW = remember { mutableStateOf(0) }
+                val screenH = remember { mutableStateOf(0) }
+                val density = LocalDensity.current
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { coords ->
+                            val sz = coords.size
+                            if (screenW.value != sz.width || screenH.value != sz.height) {
+                                screenW.value = sz.width
+                                screenH.value = sz.height
+                                // compute base cover scale
+                                val bw = bm.width
+                                val bh = bm.height
+                                if (bw > 0 && bh > 0) {
+                                    val scaleCover = maxOf(
+                                        sz.width.toFloat() / bw.toFloat(),
+                                        sz.height.toFloat() / bh.toFloat()
+                                    )
+                                    baseScale = scaleCover
+                                    imageScale = scaleCover
+                                    imageOffset = Offset.Zero
+                                    overlaySize = IntSize(bw, bh)
+                                }
+                            }
+                        }
+                        .clipToBounds()
+                ) {
+                    if (showOverlayImage) {
+                        val widthDp = with(density) { overlaySize.width.toDp() }
+                        val heightDp = with(density) { overlaySize.height.toDp() }
+                        Image(
+                            bitmap = bm,
+                            contentDescription = "overlay",
+                            contentScale = ContentScale.None,
+                            modifier = Modifier
+                                .size(widthDp, heightDp)
+                                .graphicsLayer(
+                                    scaleX = imageScale,
+                                    scaleY = imageScale,
+                                    translationX = imageOffset.x,
+                                    translationY = imageOffset.y
+                                )
+                        )
+                    }
+
+                    // Drawing layer that follows the same transform
+                    val widthDp = with(density) { overlaySize.width.toDp() }
+                    val heightDp = with(density) { overlaySize.height.toDp() }
+                    Canvas(
+                        modifier = Modifier
+                            .size(widthDp, heightDp)
+                            .graphicsLayer(
+                                scaleX = imageScale,
+                                scaleY = imageScale,
+                                translationX = imageOffset.x,
+                                translationY = imageOffset.y
+                            )
+                            .pointerInput(Unit) {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    val minScale = baseScale
+                                    val maxScale = baseScale * 3f
+                                    val newScale = (imageScale * zoom).coerceIn(minScale, maxScale)
+                                    imageScale = newScale
+                                    imageOffset += pan
+                                }
+                            }
+                    ) {
+                        // Draw circles in image coordinate space so they transform together
+                        val stroke = Stroke(width = 3f)
+                        circles.forEach { c ->
+                            drawCircle(
+                                color = Color.White,
+                                radius = c.r,
+                                center = Offset(c.cx, c.cy),
+                                style = stroke
+                            )
+                            // center point
+                            drawCircle(
+                                color = Color.White,
+                                radius = 4f,
+                                center = Offset(c.cx, c.cy)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Loading indicator
             if (isLoading) {
                 Box(
@@ -218,6 +334,44 @@ class RtspPlayerActivity : ComponentActivity() {
                     style = MaterialTheme.typography.labelMedium
                 )
             }
+
+            // Second FAB: overlay screenshot and run detection
+            FloatingActionButton(
+                onClick = {
+                    captureFrameBitmap { bmp ->
+                        if (bmp != null) {
+                            overlayBitmap = bmp.asImageBitmap()
+                            // Run model to detect circles
+                            val list = detector?.detect(bmp) ?: emptyList()
+                            circles = list
+                        } else {
+                            Toast.makeText(context, "Overlay capture failed", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(24.dp),
+                containerColor = MaterialTheme.colorScheme.secondary
+            ) {
+                Text(
+                    text = "覆盖截图",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+
+            // Optional small button to toggle image visibility but keep drawings
+            if (overlayBitmap != null) {
+                TextButton(
+                    onClick = { showOverlayImage = !showOverlayImage },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp)
+                ) {
+                    Text(if (showOverlayImage) "隐藏图片" else "显示图片")
+                }
+            }
         }
     }
     
@@ -236,7 +390,9 @@ class RtspPlayerActivity : ComponentActivity() {
             
             try {
                 // Create bitmap with surface dimensions
-                val surfaceBitmap = Bitmap.createBitmap(1920, 1080, Bitmap.Config.ARGB_8888)
+                val w = if (surfaceView.width > 0) surfaceView.width else 1920
+                val h = if (surfaceView.height > 0) surfaceView.height else 1080
+                val surfaceBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
                 val lock = Object()
                 val success = AtomicBoolean(false)
                 val thread = HandlerThread("ScreenshotHelper")
@@ -278,7 +434,47 @@ class RtspPlayerActivity : ComponentActivity() {
             Toast.makeText(this, "Surface not available", Toast.LENGTH_SHORT).show()
         }
     }
-    
+
+    private fun captureFrameBitmap(onResult: (Bitmap?) -> Unit) {
+        rtspSurfaceView?.let { surfaceView ->
+            if (!isConnected) {
+                onResult(null)
+                return
+            }
+
+            try {
+                val w = if (surfaceView.width > 0) surfaceView.width else 1920
+                val h = if (surfaceView.height > 0) surfaceView.height else 1080
+                val surfaceBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val lock = Object()
+                val success = AtomicBoolean(false)
+                val thread = HandlerThread("OverlayCapture")
+                thread.start()
+                val handler = Handler(thread.looper)
+
+                val listener = PixelCopy.OnPixelCopyFinishedListener { copyResult ->
+                    success.set(copyResult == PixelCopy.SUCCESS)
+                    synchronized(lock) { lock.notify() }
+                }
+
+                synchronized(lock) {
+                    PixelCopy.request(
+                        surfaceView.holder.surface,
+                        surfaceBitmap,
+                        listener,
+                        handler
+                    )
+                    lock.wait(3000)
+                }
+                thread.quitSafely()
+                if (success.get()) onResult(surfaceBitmap) else onResult(null)
+            } catch (t: Throwable) {
+                Log.e(TAG, "captureFrameBitmap error", t)
+                onResult(null)
+            }
+        } ?: onResult(null)
+    }
+
     private fun checkStoragePermissions(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
@@ -338,6 +534,8 @@ class RtspPlayerActivity : ComponentActivity() {
         super.onDestroy()
         rtspSurfaceView?.stop()
         rtspSurfaceView = null
+        detector?.close()
+        detector = null
     }
     
     override fun onPause() {
