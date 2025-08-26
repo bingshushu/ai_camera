@@ -129,7 +129,7 @@ class RtspPlayerActivity : ComponentActivity() {
         var circles by remember { mutableStateOf(listOf<OnnxCircleDetector.Circle>()) }
         
         Box(modifier = Modifier.fillMaxSize()) {
-            // RTSP Surface View
+            // RTSP Surface View with 16:9 aspect ratio
             AndroidView(
                 factory = { ctx ->
                     RtspSurfaceView(ctx).apply {
@@ -204,7 +204,10 @@ class RtspPlayerActivity : ComponentActivity() {
                         start(requestVideo = true, requestAudio = true, requestApplication = false)
                     }
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .align(Alignment.Center)
             )
             
             // Overlay image and drawing (cover mode, pinch-zoom/pan)
@@ -336,30 +339,30 @@ class RtspPlayerActivity : ComponentActivity() {
             }
 
             // Second FAB: overlay screenshot and run detection
-            FloatingActionButton(
-                onClick = {
-                    captureFrameBitmap { bmp ->
-                        if (bmp != null) {
-                            overlayBitmap = bmp.asImageBitmap()
-                            // Run model to detect circles
-                            val list = detector?.detect(bmp) ?: emptyList()
-                            circles = list
-                        } else {
-                            Toast.makeText(context, "Overlay capture failed", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(24.dp),
-                containerColor = MaterialTheme.colorScheme.secondary
-            ) {
-                Text(
-                    text = "覆盖截图",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
+//            FloatingActionButton(
+//                onClick = {
+//                    captureFrameBitmap { bmp ->
+//                        if (bmp != null) {
+//                            overlayBitmap = bmp.asImageBitmap()
+//                            // Run model to detect circles
+//                            val list = detector?.detect(bmp) ?: emptyList()
+//                            circles = list
+//                        } else {
+//                            Toast.makeText(context, "Overlay capture failed", Toast.LENGTH_SHORT).show()
+//                        }
+//                    }
+//                },
+//                modifier = Modifier
+//                    .align(Alignment.BottomStart)
+//                    .padding(24.dp),
+//                containerColor = MaterialTheme.colorScheme.secondary
+//            ) {
+//                Text(
+//                    text = "覆盖截图",
+//                    color = Color.White,
+//                    style = MaterialTheme.typography.labelMedium
+//                )
+//            }
 
             // Optional small button to toggle image visibility but keep drawings
             if (overlayBitmap != null) {
