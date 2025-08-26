@@ -125,8 +125,13 @@ class RtspPlayerActivity : ComponentActivity() {
         var imageScale by remember { mutableStateOf(1f) }
         var baseScale by remember { mutableStateOf(1f) }
         var imageOffset by remember { mutableStateOf(Offset.Zero) }
-        var showOverlayImage by remember { mutableStateOf(true) }
+        var showOverlayImage by remember { mutableStateOf(false) } // 默认不显示图片
         var circles by remember { mutableStateOf(listOf<OnnxCircleDetector.Circle>()) }
+        
+        // UI状态管理
+        val hasOverlayImage = overlayBitmap != null
+        val showDetectionButton = !hasOverlayImage || !showOverlayImage
+        val showHideImageButton = hasOverlayImage && showOverlayImage
         
         Box(modifier = Modifier.fillMaxSize()) {
             // RTSP Surface View with 16:9 aspect ratio
@@ -210,12 +215,13 @@ class RtspPlayerActivity : ComponentActivity() {
                     .align(Alignment.Center)
             )
             
-            // Overlay image and drawing (cover mode, pinch-zoom/pan)
+            // 覆盖图片和绘制层（覆盖整个屏幕，16:9比例，支持缩放拖拽）
             if (overlayBitmap != null) {
                 val bm = overlayBitmap!!
                 val screenW = remember { mutableStateOf(0) }
                 val screenH = remember { mutableStateOf(0) }
                 val density = LocalDensity.current
+                
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -224,7 +230,7 @@ class RtspPlayerActivity : ComponentActivity() {
                             if (screenW.value != sz.width || screenH.value != sz.height) {
                                 screenW.value = sz.width
                                 screenH.value = sz.height
-                                // compute base cover scale
+                                // 计算覆盖整个屏幕的缩放比例
                                 val bw = bm.width
                                 val bh = bm.height
                                 if (bw > 0 && bh > 0) {
@@ -233,14 +239,16 @@ class RtspPlayerActivity : ComponentActivity() {
                                         sz.height.toFloat() / bh.toFloat()
                                     )
                                     baseScale = scaleCover
-                                    imageScale = scaleCover
-                                    imageOffset = Offset.Zero
+                                    if (imageScale <= 1f) {
+                                        imageScale = scaleCover // 只在初始化或重置时设置
+                                    }
                                     overlaySize = IntSize(bw, bh)
                                 }
                             }
                         }
                         .clipToBounds()
                 ) {
+                    // 图片层 - 只在showOverlayImage为true时显示
                     if (showOverlayImage) {
                         val widthDp = with(density) { overlaySize.width.toDp() }
                         val heightDp = with(density) { overlaySize.height.toDp() }
@@ -259,7 +267,7 @@ class RtspPlayerActivity : ComponentActivity() {
                         )
                     }
 
-                    // Drawing layer that follows the same transform
+                    // 绘制层 - 总是显示（跟随图片变换，即使图片隐藏了也保留圆形绘制）
                     val widthDp = with(density) { overlaySize.width.toDp() }
                     val heightDp = with(density) { overlaySize.height.toDp() }
                     Canvas(
@@ -271,30 +279,60 @@ class RtspPlayerActivity : ComponentActivity() {
                                 translationX = imageOffset.x,
                                 translationY = imageOffset.y
                             )
-                            .pointerInput(Unit) {
-                                detectTransformGestures { _, pan, zoom, _ ->
-                                    val minScale = baseScale
-                                    val maxScale = baseScale * 3f
-                                    val newScale = (imageScale * zoom).coerceIn(minScale, maxScale)
-                                    imageScale = newScale
-                                    imageOffset += pan
+                            .pointerInput(showOverlayImage) {
+                                // 只在图片显示时启用手势
+                                if (showOverlayImage) {
+                                    detectTransformGestures { _, pan, zoom, _ ->
+                                        val minScale = baseScale
+                                        val maxScale = baseScale * 3f
+                                        val newScale = (imageScale * zoom).coerceIn(minScale, maxScale)
+                                        imageScale = newScale
+                                        imageOffset += pan
+                                    }
                                 }
                             }
                     ) {
-                        // Draw circles in image coordinate space so they transform together
-                        val stroke = Stroke(width = 3f)
+                        // 绘制圆形 - 在图像坐标空间中绘制，这样它们会一起变换
+                        val strokeWidth = 3f / imageScale  // 根据缩放调整线条宽度
+                        val stroke = Stroke(width = strokeWidth)
                         circles.forEach { c ->
+                            // 根据类别选择颜色
+                            val circleColor = when (c.className) {
+                                "RedCenter" -> Color.Red
+                                "ROI" -> Color.Green
+                                else -> Color.White
+                            }
+                            
+                            // 绘制外圆
                             drawCircle(
-                                color = Color.White,
+                                color = circleColor,
                                 radius = c.r,
                                 center = Offset(c.cx, c.cy),
                                 style = stroke
                             )
-                            // center point
+                            
+                            // 绘制中心点
                             drawCircle(
-                                color = Color.White,
-                                radius = 4f,
+                                color = circleColor,
+                                radius = 6f / imageScale, // 根据缩放调整中心点大小
                                 center = Offset(c.cx, c.cy)
+                            )
+                            
+                            // 绘制中心十字标记，提高可见性
+                            val crossSize = 15f / imageScale
+                            // 水平线
+                            drawLine(
+                                color = circleColor,
+                                start = Offset(c.cx - crossSize, c.cy),
+                                end = Offset(c.cx + crossSize, c.cy),
+                                strokeWidth = strokeWidth
+                            )
+                            // 垂直线  
+                            drawLine(
+                                color = circleColor,
+                                start = Offset(c.cx, c.cy - crossSize),
+                                end = Offset(c.cx, c.cy + crossSize),
+                                strokeWidth = strokeWidth
                             )
                         }
                     }
@@ -338,41 +376,62 @@ class RtspPlayerActivity : ComponentActivity() {
                 )
             }
 
-            // Second FAB: overlay screenshot and run detection
-//            FloatingActionButton(
-//                onClick = {
-//                    captureFrameBitmap { bmp ->
-//                        if (bmp != null) {
-//                            overlayBitmap = bmp.asImageBitmap()
-//                            // Run model to detect circles
-//                            val list = detector?.detect(bmp) ?: emptyList()
-//                            circles = list
-//                        } else {
-//                            Toast.makeText(context, "Overlay capture failed", Toast.LENGTH_SHORT).show()
-//                        }
-//                    }
-//                },
-//                modifier = Modifier
-//                    .align(Alignment.BottomStart)
-//                    .padding(24.dp),
-//                containerColor = MaterialTheme.colorScheme.secondary
-//            ) {
-//                Text(
-//                    text = "覆盖截图",
-//                    color = Color.White,
-//                    style = MaterialTheme.typography.labelMedium
-//                )
-//            }
+            // 圆形检测按钮 - 只在适当时机显示
+            if (showDetectionButton) {
+                FloatingActionButton(
+                    onClick = {
+                        captureFrameBitmap { bmp ->
+                            if (bmp != null) {
+                                overlayBitmap = bmp.asImageBitmap()
+                                showOverlayImage = true // 显示截取的图片
+                                
+                                // 重置缩放和偏移，确保图片以正确尺寸显示
+                                imageScale = 1f
+                                baseScale = 1f
+                                imageOffset = Offset.Zero
+                                
+                                // Run model to detect circles
+                                Log.i(TAG, "开始运行圆形检测...")
+                                val list = detector?.detect(bmp) ?: emptyList()
+                                circles = list
+                                Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
+                                list.forEach { circle ->
+                                    Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                }
+                            } else {
+                                Toast.makeText(context, "覆盖截图失败", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(24.dp),
+                    containerColor = MaterialTheme.colorScheme.secondary
+                ) {
+                    Text(
+                        text = "圆形检测",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
 
-            // Optional small button to toggle image visibility but keep drawings
-            if (overlayBitmap != null) {
-                TextButton(
-                    onClick = { showOverlayImage = !showOverlayImage },
+            // 隐藏图片按钮 - 只在图片显示时出现
+            if (showHideImageButton) {
+                FloatingActionButton(
+                    onClick = { 
+                        showOverlayImage = false // 隐藏图片但保留圆形绘制
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp)
+                        .padding(bottom = 24.dp),
+                    containerColor = MaterialTheme.colorScheme.tertiary
                 ) {
-                    Text(if (showOverlayImage) "隐藏图片" else "显示图片")
+                    Text(
+                        text = "隐藏图片",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
         }
