@@ -54,6 +54,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.alpha
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -128,6 +129,14 @@ class RtspPlayerActivity : ComponentActivity() {
         var imageOffset by remember { mutableStateOf(Offset.Zero) }
         var showOverlayImage by remember { mutableStateOf(false) } // 默认不显示图片
         var circles by remember { mutableStateOf(listOf<OnnxCircleDetector.Circle>()) }
+        var isNozzleConfirmed by remember { mutableStateOf(false) } // 喷嘴确认状态
+        
+        // RTSP视频播放器的变换状态
+        var rtspScale by remember { mutableStateOf(1f) }
+        var rtspOffset by remember { mutableStateOf(Offset.Zero) }
+        
+        // 画面异常状态
+        var hasStreamIssue by remember { mutableStateOf(false) }
         
         // UI状态管理
         val hasOverlayImage = overlayBitmap != null
@@ -154,6 +163,7 @@ class RtspPlayerActivity : ComponentActivity() {
                                 isLoading = false
                                 statusText = "Connected"
                                 isConnected = true
+                                hasStreamIssue = false
                             }
                             
                             override fun onRtspStatusDisconnecting() {
@@ -173,6 +183,7 @@ class RtspPlayerActivity : ComponentActivity() {
                                 isLoading = false
                                 statusText = "Authentication Failed"
                                 isConnected = false
+                                hasStreamIssue = true
                             }
                             
                             override fun onRtspStatusFailed(message: String?) {
@@ -180,11 +191,13 @@ class RtspPlayerActivity : ComponentActivity() {
                                 isLoading = false
                                 statusText = "Error: $message"
                                 isConnected = false
+                                hasStreamIssue = true
                             }
                             
                             override fun onRtspFirstFrameRendered() {
                                 Log.i(TAG, "First frame rendered")
                                 statusText = "Playing"
+                                hasStreamIssue = false
                             }
                             
                             override fun onRtspFrameSizeChanged(width: Int, height: Int) {
@@ -214,6 +227,12 @@ class RtspPlayerActivity : ComponentActivity() {
                     .wrapContentSize() // 使用内容尺寸而不是铺满宽度
                     .aspectRatio(16f / 9f)
                     .align(Alignment.Center) // 居中显示
+                    .graphicsLayer(
+                        scaleX = rtspScale,
+                        scaleY = rtspScale,
+                        translationX = rtspOffset.x,
+                        translationY = rtspOffset.y
+                    )
             )
             
 
@@ -327,7 +346,8 @@ class RtspPlayerActivity : ComponentActivity() {
                             }
                     ) {
                         // 绘制圆形 - 在图像坐标空间中绘制，这样它们会一起变换
-                        val strokeWidth = 3f / imageScale  // 根据缩放调整线条宽度
+                        val strokeWidth = 24f / imageScale  // 根据缩放调整线条宽度，增加粗细
+                        val centerStrokeWidth = 3f / imageScale  // 圆心线条宽度
                         val stroke = Stroke(width = strokeWidth)
                         circles.forEach { c ->
                             // 根据类别选择颜色
@@ -359,14 +379,14 @@ class RtspPlayerActivity : ComponentActivity() {
                                 color = circleColor,
                                 start = Offset(c.cx - crossSize, c.cy),
                                 end = Offset(c.cx + crossSize, c.cy),
-                                strokeWidth = strokeWidth
+                                strokeWidth = centerStrokeWidth
                             )
                             // 垂直线  
                             drawLine(
                                 color = circleColor,
                                 start = Offset(c.cx, c.cy - crossSize),
                                 end = Offset(c.cx, c.cy + crossSize),
-                                strokeWidth = strokeWidth
+                                strokeWidth = centerStrokeWidth
                             )
                         }
                     }
@@ -395,19 +415,24 @@ class RtspPlayerActivity : ComponentActivity() {
                     .padding(16.dp)
             )
             
-            // Debug info (仅在有覆盖图片时显示)
-            if (overlayBitmap != null) {
+            // 设置按钮 - 右上角蓝色
+            FloatingActionButton(
+                onClick = {
+                    // TODO: 实现设置功能
+                    Log.i(TAG, "打开设置")
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
+                containerColor = Color(0xFF2196F3)
+            ) {
                 Text(
-                    text = "缩放: ${String.format("%.2f", imageScale)} | " +
-                          "图片: ${overlaySize.width}x${overlaySize.height} | " +
-                          "圆形: ${circles.size}个",
-                    color = Color.Yellow,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(16.dp)
+                    text = "设置",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium
                 )
             }
+            
             
             // Floating screenshot button
             FloatingActionButton(
@@ -424,58 +449,119 @@ class RtspPlayerActivity : ComponentActivity() {
                 )
             }
 
-            // 圆形检测按钮 - 只在适当时机显示
-            if (showDetectionButton) {
+            // 右侧按钮组 - 垂直居中
+            Column(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 喷嘴确认按钮 - 黄色，选中时橙色
                 FloatingActionButton(
                     onClick = {
-                        captureFrameBitmap { bmp ->
-                            if (bmp != null) {
-                                overlayBitmap = bmp.asImageBitmap()
-                                showOverlayImage = true // 显示截取的图片
+                        if (!isNozzleConfirmed) {
+                            // 第一次点击：执行圆形检测并设置确认状态
+                            captureFrameBitmap { bmp ->
+                                if (bmp != null) {
+                                    overlayBitmap = bmp.asImageBitmap()
+                                    showOverlayImage = true // 显示截取的图片
 
-                                // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
-                                imageScale = baseScale
-                                imageOffset = Offset.Zero
+                                    // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
+                                    imageScale = baseScale
+                                    imageOffset = Offset.Zero
 
-                                // Run model to detect circles
-                                Log.i(TAG, "开始运行圆形检测...")
-                                val list = detector?.detect(bmp) ?: emptyList()
-                                circles = list
-                                Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
-                                list.forEach { circle ->
-                                    Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                    // Run model to detect circles
+                                    Log.i(TAG, "开始运行圆形检测...")
+                                    val list = detector?.detect(bmp) ?: emptyList()
+                                    circles = list
+                                    Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
+                                    list.forEach { circle ->
+                                        Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                    }
+                                    
+                                    // 设置确认状态
+                                    isNozzleConfirmed = true
+                                } else {
+                                    Toast.makeText(context, "覆盖截图失败", Toast.LENGTH_SHORT).show()
                                 }
-                            } else {
-                                Toast.makeText(context, "覆盖截图失败", Toast.LENGTH_SHORT).show()
                             }
+                        } else {
+                            // 第二次点击：还原所有设置
+                            imageScale = 1f
+                            imageOffset = Offset.Zero
+                            rtspScale = 1f
+                            rtspOffset = Offset.Zero
+                            showOverlayImage = false
+                            overlayBitmap = null
+                            circles = emptyList()
+                            isNozzleConfirmed = false
                         }
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(24.dp),
-                    containerColor = MaterialTheme.colorScheme.secondary
+                    containerColor = if (isNozzleConfirmed) Color(0xFFFF9800) else Color(0xFFFFEB3B)
                 ) {
                     Text(
-                        text = "圆形检测",
-                        color = Color.White,
+                        text = "喷嘴确认",
+                        color = Color.Black,
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
-            }
-
-            // 隐藏图片按钮 - 只在图片显示时出现
-            if (showHideImageButton) {
+                
+                // 红光对中按钮 - 红色，隐藏时占位
                 FloatingActionButton(
                     onClick = { 
-                        showOverlayImage = false // 隐藏图片但保留圆形绘制
+                        if (showHideImageButton) {
+                            // 将图片的缩放和位置应用到RTSP视频播放器
+                            rtspScale = imageScale
+                            rtspOffset = imageOffset
+                            
+                            // 隐藏图片但保留圆形绘制
+                            showOverlayImage = false
+                            
+                            Log.i(TAG, "红光对中: 应用变换到RTSP播放器 - 缩放: ${String.format("%.3f", rtspScale)}, 偏移: (${rtspOffset.x.toInt()}, ${rtspOffset.y.toInt()})")
+                        }
+                    },
+                    containerColor = if (showHideImageButton) Color(0xFFF44336) else Color.Transparent,
+                    modifier = Modifier.alpha(if (showHideImageButton) 1f else 0f)
+                ) {
+                    if (showHideImageButton) {
+                        Text(
+                            text = "红光对中",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
+
+            
+            // 重试按钮 - 当画面异常时显示，左上角绿色
+            if (hasStreamIssue) {
+                FloatingActionButton(
+                    onClick = {
+                        Log.i(TAG, "重试连接RTSP流")
+                        hasStreamIssue = false
+                        isLoading = true
+                        statusText = "Retrying..."
+                        
+                        // 停止当前连接并重新开始
+                        rtspSurfaceView?.let { surfaceView ->
+                            if (surfaceView.isStarted()) {
+                                surfaceView.stop()
+                            }
+                            
+                            // 重新初始化连接
+                            val uri = Uri.parse(DEFAULT_RTSP_URL)
+                            surfaceView.init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-RTSP-Client")
+                            surfaceView.start(requestVideo = true, requestAudio = true, requestApplication = false)
+                        }
                     },
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp),
-                    containerColor = MaterialTheme.colorScheme.tertiary
+                        .align(Alignment.TopStart)
+                        .padding(16.dp),
+                    containerColor = Color(0xFF4CAF50)
                 ) {
                     Text(
-                        text = "隐藏图片",
+                        text = "重试",
                         color = Color.White,
                         style = MaterialTheme.typography.labelMedium
                     )
