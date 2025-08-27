@@ -144,7 +144,8 @@ class RtspPlayerActivity : ComponentActivity() {
         val showHideImageButton = hasOverlayImage && showOverlayImage
         
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            // RTSP Surface View with 16:9 aspect ratio - 居中显示，不铺满屏幕
+            // RTSP Surface View with 16:9 aspect ratio - 居中显示，不铺满屏幕  
+            // 使用透明度隐藏视频而不是条件渲染，避免重连
             AndroidView(
                 factory = { ctx ->
                     RtspSurfaceView(ctx).apply {
@@ -227,6 +228,7 @@ class RtspPlayerActivity : ComponentActivity() {
                     .wrapContentSize() // 使用内容尺寸而不是铺满宽度
                     .aspectRatio(16f / 9f)
                     .align(Alignment.Center) // 居中显示
+                    .alpha(if (showOverlayImage) 0f else 1f) // 使用透明度控制显示/隐藏
                     .graphicsLayer(
                         scaleX = rtspScale,
                         scaleY = rtspScale,
@@ -340,7 +342,29 @@ class RtspPlayerActivity : ComponentActivity() {
                                         val maxScale = baseScale * 3f
                                         val newScale = (imageScale * zoom).coerceIn(minScale, maxScale)
                                         imageScale = newScale
-                                        imageOffset += pan
+                                        
+                                        // 计算拖拽边界约束 - 限制图片离开屏幕边缘不超过1/3
+                                        val newOffset = imageOffset + pan
+                                        val containerW = rtspViewW.value.toFloat()
+                                        val containerH = rtspViewH.value.toFloat()
+                                        val scaledImageW = overlaySize.width * imageScale
+                                        val scaledImageH = overlaySize.height * imageScale
+                                        
+                                        // 计算允许移动的最大距离（图片尺寸的1/3）
+                                        val maxOffsetX = scaledImageW / 4f
+                                        val maxOffsetY = scaledImageH / 4f
+                                        
+                                        // 计算边界
+                                        val leftBound = -maxOffsetX
+                                        val rightBound = containerW - scaledImageW + maxOffsetX
+                                        val topBound = -maxOffsetY
+                                        val bottomBound = containerH - scaledImageH + maxOffsetY
+                                        
+                                        // 应用边界约束
+                                        imageOffset = Offset(
+                                            x = newOffset.x.coerceIn(leftBound, rightBound),
+                                            y = newOffset.y.coerceIn(topBound, bottomBound)
+                                        )
                                     }
                                 }
                             }
