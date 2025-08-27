@@ -44,7 +44,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.alexvas.rtsp.widget.RtspDataListener
 import com.alexvas.rtsp.widget.RtspStatusListener
 import com.alexvas.rtsp.widget.RtspSurfaceView
-import com.alexvas.rtsp.widget.RtspImageView
 import com.ai.bb.camera.ui.theme.AICameraTheme
 import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -54,6 +53,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -64,10 +64,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class RtspPlayerActivity : ComponentActivity() {
     
     private var rtspSurfaceView: RtspSurfaceView? = null
-    private var rtspImageView: RtspImageView? = null
     private var isConnected = false
     private var detector: OnnxCircleDetector? = null
-    private var latestRtspBitmap: Bitmap? = null
     
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -136,8 +134,8 @@ class RtspPlayerActivity : ComponentActivity() {
         val showDetectionButton = !hasOverlayImage || !showOverlayImage
         val showHideImageButton = hasOverlayImage && showOverlayImage
         
-        Box(modifier = Modifier.fillMaxSize()) {
-            // RTSP Surface View with 16:9 aspect ratio
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            // RTSP Surface View with 16:9 aspect ratio - 居中显示，不铺满屏幕
             AndroidView(
                 factory = { ctx ->
                     RtspSurfaceView(ctx).apply {
@@ -190,7 +188,7 @@ class RtspPlayerActivity : ComponentActivity() {
                             }
                             
                             override fun onRtspFrameSizeChanged(width: Int, height: Int) {
-                                Log.i(TAG, "Frame size changed: ${width}x${height}")
+                                Log.i(TAG, "RTSP视频流尺寸变化: ${width}x${height} (比例: ${String.format("%.3f", width.toFloat() / height.toFloat())})")
                             }
                         })
                         
@@ -213,37 +211,12 @@ class RtspPlayerActivity : ComponentActivity() {
                     }
                 },
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .wrapContentSize() // 使用内容尺寸而不是铺满宽度
                     .aspectRatio(16f / 9f)
-                    .align(Alignment.Center)
+                    .align(Alignment.Center) // 居中显示
             )
             
-            // 隐藏的RtspImageView用于获取图片数据
-            AndroidView(
-                factory = { ctx ->
-                    RtspImageView(ctx).apply {
-                        rtspImageView = this
-                        
-                        // 设置图片获取回调
-                        onRtspImageBitmapListener = object : RtspImageView.RtspImageBitmapListener {
-                            override fun onRtspImageBitmapObtained(bitmap: Bitmap) {
-                                Log.i(TAG, "RTSP图片获取: ${bitmap.width}x${bitmap.height}")
-                                // 如果有旧的bitmap，先回收再替换
-                                latestRtspBitmap?.recycle()
-                                latestRtspBitmap = bitmap.copy(bitmap.config ?: Bitmap.Config.ARGB_8888, false) // 创建副本以避免并发问题
-                            }
-                        }
-                        
-                        // 连接到相同的RTSP流
-                        val uri = Uri.parse(DEFAULT_RTSP_URL)
-                        init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-Image-Client")
-                        start(requestVideo = true, requestAudio = false, requestApplication = false)
-                    }
-                },
-                modifier = Modifier
-                    .size(1.dp, 1.dp) // 最小尺寸，隐藏显示
-                    .align(Alignment.TopStart)
-            )
+
             
             // 覆盖图片和绘制层（与RTSP视频流保持相同的16:9比例和位置）
             if (overlayBitmap != null) {
@@ -254,9 +227,10 @@ class RtspPlayerActivity : ComponentActivity() {
                 
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .wrapContentSize() // 使用内容尺寸，与RTSP视频流保持一致
                         .aspectRatio(16f / 9f)  // 与RTSP视频流保持相同比例
                         .align(Alignment.Center) // 与RTSP视频流保持相同对齐方式
+                        .background(Color.Black) // 添加黑色背景
                         .onGloballyPositioned { coords ->
                             val sz = coords.size
                             if (rtspViewW.value != sz.width || rtspViewH.value != sz.height) {
@@ -455,16 +429,10 @@ class RtspPlayerActivity : ComponentActivity() {
             if (showDetectionButton) {
                 FloatingActionButton(
                     onClick = {
-                        // 使用来自RtspImageView的最新图片
-                        val bmp = latestRtspBitmap
-                        if (bmp != null && !bmp.isRecycled) {
-                            Log.i(TAG, "使用RTSP图片进行检测: ${bmp.width}x${bmp.height}")
-                            
-                            try {
-                                // 创建图片副本用于显示
-                                val displayBitmap = bmp.copy(bmp.config ?: Bitmap.Config.ARGB_8888, false)
-                                overlayBitmap = displayBitmap.asImageBitmap()
-                                showOverlayImage = true
+                        captureFrameBitmap { bmp ->
+                            if (bmp != null) {
+                                overlayBitmap = bmp.asImageBitmap()
+                                showOverlayImage = true // 显示截取的图片
                                 
                                 // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
                                 imageScale = baseScale
@@ -477,16 +445,10 @@ class RtspPlayerActivity : ComponentActivity() {
                                 Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
                                 list.forEach { circle ->
                                     Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
-                                    Log.i(TAG, "RTSP图片尺寸: ${bmp.width}x${bmp.height}, 圆心相对位置: (${String.format("%.3f", circle.cx / bmp.width)}, ${String.format("%.3f", circle.cy / bmp.height)})")
                                 }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "处理RTSP图片时出错", e)
-                                Toast.makeText(context, "图片处理失败: ${e.message}", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "覆盖截图失败", Toast.LENGTH_SHORT).show()
                             }
-                        } else {
-                            val message = if (bmp == null) "RTSP图片尚未获取，请稍后再试" else "RTSP图片已被回收，请稍后再试"
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            Log.w(TAG, "无法进行检测: bitmap=${bmp}, isRecycled=${bmp?.isRecycled}")
                         }
                     },
                     modifier = Modifier
@@ -583,7 +545,45 @@ class RtspPlayerActivity : ComponentActivity() {
         }
     }
 
+    private fun captureFrameBitmap(onResult: (Bitmap?) -> Unit) {
+        rtspSurfaceView?.let { surfaceView ->
+            if (!isConnected) {
+                onResult(null)
+                return
+            }
 
+            try {
+                val w = if (surfaceView.width > 0) surfaceView.width else 1920
+                val h = if (surfaceView.height > 0) surfaceView.height else 1080
+                val surfaceBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val lock = Object()
+                val success = AtomicBoolean(false)
+                val thread = HandlerThread("OverlayCapture")
+                thread.start()
+                val handler = Handler(thread.looper)
+
+                val listener = PixelCopy.OnPixelCopyFinishedListener { copyResult ->
+                    success.set(copyResult == PixelCopy.SUCCESS)
+                    synchronized(lock) { lock.notify() }
+                }
+
+                synchronized(lock) {
+                    PixelCopy.request(
+                        surfaceView.holder.surface,
+                        surfaceBitmap,
+                        listener,
+                        handler
+                    )
+                    lock.wait(3000)
+                }
+                thread.quitSafely()
+                if (success.get()) onResult(surfaceBitmap) else onResult(null)
+            } catch (t: Throwable) {
+                Log.e(TAG, "captureFrameBitmap error", t)
+                onResult(null)
+            }
+        } ?: onResult(null)
+    }
 
     private fun checkStoragePermissions(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -644,10 +644,6 @@ class RtspPlayerActivity : ComponentActivity() {
         super.onDestroy()
         rtspSurfaceView?.stop()
         rtspSurfaceView = null
-        rtspImageView?.stop()
-        rtspImageView = null
-        latestRtspBitmap?.recycle()
-        latestRtspBitmap = null
         detector?.close()
         detector = null
     }
@@ -655,7 +651,6 @@ class RtspPlayerActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         rtspSurfaceView?.takeIf { it.isStarted() }?.stop()
-        rtspImageView?.takeIf { it.isStarted() }?.stop()
     }
     
     override fun onResume() {
@@ -664,11 +659,6 @@ class RtspPlayerActivity : ComponentActivity() {
             val uri = Uri.parse(DEFAULT_RTSP_URL)
             it.init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-RTSP-Client")
             it.start(requestVideo = true, requestAudio = true, requestApplication = false)
-        }
-        rtspImageView?.takeIf { !it.isStarted() }?.let {
-            val uri = Uri.parse(DEFAULT_RTSP_URL)
-            it.init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-Image-Client")
-            it.start(requestVideo = true, requestAudio = false, requestApplication = false)
         }
     }
 }
