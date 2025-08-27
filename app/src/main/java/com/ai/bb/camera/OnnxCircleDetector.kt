@@ -288,6 +288,10 @@ class OnnxCircleDetector(context: Context) {
             val expectedFeatures = 4 + classNames.size
             if (numFeatures != expectedFeatures) {
                 Log.w("OnnxCircleDetector", "特征数不匹配，预期: $expectedFeatures，实际: $numFeatures")
+                // 如果特征数不匹配且少于预期，调整类别数
+                if (numFeatures < expectedFeatures) {
+                    Log.w("OnnxCircleDetector", "调整类别数以匹配模型输出")
+                }
             }
             
             // 解析检测结果
@@ -327,14 +331,23 @@ class OnnxCircleDetector(context: Context) {
                     height = data[3 * actualAnchors + i]
                 }
                 
-                // 计算类别分数
+                // 计算类别分数 - 动态确定实际类别数
                 var maxScore = -1f
                 var maxClassId = -1
-                for (c in 0 until classNames.size) {
+                val actualNumClasses = actualFeatures - 4 // 减去4个bbox特征
+                val numClassesToCheck = minOf(classNames.size, actualNumClasses)
+                
+                for (c in 0 until numClassesToCheck) {
                     val score: Float = if (isTransposed) {
                         data[i * actualFeatures + (4 + c)]
                     } else {
-                        data[(4 + c) * actualAnchors + i]
+                        val index = (4 + c) * actualAnchors + i
+                        if (index < data.size) {
+                            data[index]
+                        } else {
+                            Log.w("OnnxCircleDetector", "跳过越界访问: index=$index, dataSize=${data.size}")
+                            continue
+                        }
                     }
                     if (score > maxScore) {
                         maxScore = score
