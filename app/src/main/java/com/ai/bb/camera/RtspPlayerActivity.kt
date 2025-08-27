@@ -215,34 +215,47 @@ class RtspPlayerActivity : ComponentActivity() {
                     .align(Alignment.Center)
             )
             
-            // 覆盖图片和绘制层（覆盖整个屏幕，16:9比例，支持缩放拖拽）
+            // 覆盖图片和绘制层（与RTSP视频流保持相同的16:9比例和位置）
             if (overlayBitmap != null) {
                 val bm = overlayBitmap!!
-                val screenW = remember { mutableStateOf(0) }
-                val screenH = remember { mutableStateOf(0) }
+                val rtspViewW = remember { mutableStateOf(0) }
+                val rtspViewH = remember { mutableStateOf(0) }
                 val density = LocalDensity.current
                 
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)  // 与RTSP视频流保持相同比例
+                        .align(Alignment.Center) // 与RTSP视频流保持相同对齐方式
                         .onGloballyPositioned { coords ->
                             val sz = coords.size
-                            if (screenW.value != sz.width || screenH.value != sz.height) {
-                                screenW.value = sz.width
-                                screenH.value = sz.height
-                                // 计算覆盖整个屏幕的缩放比例
+                            if (rtspViewW.value != sz.width || rtspViewH.value != sz.height) {
+                                rtspViewW.value = sz.width
+                                rtspViewH.value = sz.height
+                                // 计算适配16:9显示区域的缩放比例
                                 val bw = bm.width
                                 val bh = bm.height
                                 if (bw > 0 && bh > 0) {
-                                    val scaleCover = maxOf(
+                                    // 检查图片和容器的宽高比
+                                    val imageAspectRatio = bw.toFloat() / bh.toFloat()
+                                    val containerAspectRatio = sz.width.toFloat() / sz.height.toFloat()
+                                    
+                                    // 使用fit模式，确保整个图片都能显示在16:9区域内
+                                    val scaleToFit = minOf(
                                         sz.width.toFloat() / bw.toFloat(),
                                         sz.height.toFloat() / bh.toFloat()
                                     )
-                                    baseScale = scaleCover
-                                    if (imageScale <= 1f) {
-                                        imageScale = scaleCover // 只在初始化或重置时设置
+                                    
+                                    baseScale = scaleToFit
+                                    if (imageScale <= baseScale || imageScale <= 1f) {
+                                        imageScale = scaleToFit // 只在初始化或重置时设置
                                     }
                                     overlaySize = IntSize(bw, bh)
+                                    
+                                    Log.i("RtspPlayerActivity", 
+                                        "图片尺寸: ${bw}x${bh} (${String.format("%.2f", imageAspectRatio)}), " +
+                                        "容器尺寸: ${sz.width}x${sz.height} (${String.format("%.2f", containerAspectRatio)}), " +
+                                        "缩放比例: ${String.format("%.3f", scaleToFit)}")
                                 }
                             }
                         }
@@ -252,6 +265,15 @@ class RtspPlayerActivity : ComponentActivity() {
                     if (showOverlayImage) {
                         val widthDp = with(density) { overlaySize.width.toDp() }
                         val heightDp = with(density) { overlaySize.height.toDp() }
+                        
+                        // 计算图片在16:9容器中的居中偏移
+                        val containerW = rtspViewW.value.toFloat()
+                        val containerH = rtspViewH.value.toFloat()
+                        val scaledImageW = overlaySize.width * baseScale
+                        val scaledImageH = overlaySize.height * baseScale
+                        val centerOffsetX = (containerW - scaledImageW) / 2f
+                        val centerOffsetY = (containerH - scaledImageH) / 2f
+                        
                         Image(
                             bitmap = bm,
                             contentDescription = "overlay",
@@ -261,8 +283,8 @@ class RtspPlayerActivity : ComponentActivity() {
                                 .graphicsLayer(
                                     scaleX = imageScale,
                                     scaleY = imageScale,
-                                    translationX = imageOffset.x,
-                                    translationY = imageOffset.y
+                                    translationX = centerOffsetX + imageOffset.x,
+                                    translationY = centerOffsetY + imageOffset.y
                                 )
                         )
                     }
@@ -270,14 +292,23 @@ class RtspPlayerActivity : ComponentActivity() {
                     // 绘制层 - 总是显示（跟随图片变换，即使图片隐藏了也保留圆形绘制）
                     val widthDp = with(density) { overlaySize.width.toDp() }
                     val heightDp = with(density) { overlaySize.height.toDp() }
+                    
+                    // 计算Canvas在16:9容器中的居中偏移（与图片保持一致）
+                    val containerW = rtspViewW.value.toFloat()
+                    val containerH = rtspViewH.value.toFloat()
+                    val scaledImageW = overlaySize.width * baseScale
+                    val scaledImageH = overlaySize.height * baseScale
+                    val centerOffsetX = (containerW - scaledImageW) / 2f
+                    val centerOffsetY = (containerH - scaledImageH) / 2f
+                    
                     Canvas(
                         modifier = Modifier
                             .size(widthDp, heightDp)
                             .graphicsLayer(
                                 scaleX = imageScale,
                                 scaleY = imageScale,
-                                translationX = imageOffset.x,
-                                translationY = imageOffset.y
+                                translationX = centerOffsetX + imageOffset.x,
+                                translationY = centerOffsetY + imageOffset.y
                             )
                             .pointerInput(showOverlayImage) {
                                 // 只在图片显示时启用手势
@@ -361,6 +392,20 @@ class RtspPlayerActivity : ComponentActivity() {
                     .padding(16.dp)
             )
             
+            // Debug info (仅在有覆盖图片时显示)
+            if (overlayBitmap != null) {
+                Text(
+                    text = "缩放: ${String.format("%.2f", imageScale)} | " +
+                          "图片: ${overlaySize.width}x${overlaySize.height} | " +
+                          "圆形: ${circles.size}个",
+                    color = Color.Yellow,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                )
+            }
+            
             // Floating screenshot button
             FloatingActionButton(
                 onClick = { takeScreenshot() },
@@ -385,9 +430,8 @@ class RtspPlayerActivity : ComponentActivity() {
                                 overlayBitmap = bmp.asImageBitmap()
                                 showOverlayImage = true // 显示截取的图片
                                 
-                                // 重置缩放和偏移，确保图片以正确尺寸显示
-                                imageScale = 1f
-                                baseScale = 1f
+                                // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
+                                imageScale = baseScale
                                 imageOffset = Offset.Zero
                                 
                                 // Run model to detect circles
