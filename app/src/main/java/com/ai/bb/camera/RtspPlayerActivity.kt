@@ -230,7 +230,6 @@ class RtspPlayerActivity : ComponentActivity() {
                         .wrapContentSize() // 使用内容尺寸，与RTSP视频流保持一致
                         .aspectRatio(16f / 9f)  // 与RTSP视频流保持相同比例
                         .align(Alignment.Center) // 与RTSP视频流保持相同对齐方式
-                        .background(Color.Black) // 添加黑色背景
                         .onGloballyPositioned { coords ->
                             val sz = coords.size
                             if (rtspViewW.value != sz.width || rtspViewH.value != sz.height) {
@@ -269,7 +268,7 @@ class RtspPlayerActivity : ComponentActivity() {
                     if (showOverlayImage) {
                         val widthDp = with(density) { overlaySize.width.toDp() }
                         val heightDp = with(density) { overlaySize.height.toDp() }
-                        
+
                         // 计算图片在16:9容器中的居中偏移
                         val containerW = rtspViewW.value.toFloat()
                         val containerH = rtspViewH.value.toFloat()
@@ -277,7 +276,7 @@ class RtspPlayerActivity : ComponentActivity() {
                         val scaledImageH = overlaySize.height * baseScale
                         val centerOffsetX = (containerW - scaledImageW) / 2f
                         val centerOffsetY = (containerH - scaledImageH) / 2f
-                        
+
                         Image(
                             bitmap = bm,
                             contentDescription = "overlay",
@@ -433,11 +432,11 @@ class RtspPlayerActivity : ComponentActivity() {
                             if (bmp != null) {
                                 overlayBitmap = bmp.asImageBitmap()
                                 showOverlayImage = true // 显示截取的图片
-                                
+
                                 // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
                                 imageScale = baseScale
                                 imageOffset = Offset.Zero
-                                
+
                                 // Run model to detect circles
                                 Log.i(TAG, "开始运行圆形检测...")
                                 val list = detector?.detect(bmp) ?: emptyList()
