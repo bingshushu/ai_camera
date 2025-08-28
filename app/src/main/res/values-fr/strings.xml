@@ -42,4 +42,16 @@
     <string name="auth_failed">Authentification Échouée</string>
     <string name="error">Erreur</string>
     <string name="retrying">Nouvel Essai...</string>
+    
+    <!-- Toast Messages -->
+    <string name="permission_storage_required">Permission de stockage requise pour sauvegarder les captures</string>
+    <string name="test_image_load_failed">Échec du chargement de l\'image test</string>
+    <string name="capture_failed">Capture échouée</string>
+    <string name="rtsp_not_connected">RTSP non connecté</string>
+    <string name="screenshot_failed">Capture d\'écran échouée</string>
+    <string name="screenshot_error">Erreur de capture: %s</string>
+    <string name="surface_not_available">Surface non disponible</string>
+    <string name="screenshot_saved">Capture sauvegardée dans la galerie</string>
+    <string name="create_image_file_failed">Échec de création du fichier image</string>
+    <string name="save_screenshot_failed">Échec de sauvegarde de la capture: %s</string>
 </resources>

@@ -90,7 +90,7 @@ class RtspPlayerActivity : AppCompatActivity() {
         if (!allGranted) {
             Toast.makeText(
                 this,
-                "Storage permission is required to save screenshots",
+                getString(R.string.permission_storage_required),
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -534,7 +534,7 @@ class RtspPlayerActivity : AppCompatActivity() {
 //                                    // 设置确认状态
 //                                    isNozzleConfirmed = true
 //                                } else {
-//                                    Toast.makeText(context, "加载测试图片失败", Toast.LENGTH_SHORT).show()
+//                                    Toast.makeText(context, getString(R.string.test_image_load_failed), Toast.LENGTH_SHORT).show()
 //                                }
 //                            } else {
                             // 生产模式：截取当前画面
@@ -573,7 +573,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                                     // 设置确认状态
                                     isNozzleConfirmed = true
                                 } else {
-                                    Toast.makeText(context, "覆盖截图失败", Toast.LENGTH_SHORT)
+                                    Toast.makeText(context, getString(R.string.capture_failed), Toast.LENGTH_SHORT)
                                         .show()
                                 }
                             }
@@ -685,7 +685,7 @@ class RtspPlayerActivity : AppCompatActivity() {
     private fun takeScreenshot() {
         rtspSurfaceView?.let { surfaceView ->
             if (!isConnected) {
-                Toast.makeText(this, "RTSP not connected", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.rtsp_not_connected), Toast.LENGTH_SHORT).show()
                 return
             }
 
@@ -729,16 +729,16 @@ class RtspPlayerActivity : AppCompatActivity() {
                     // Save bitmap to gallery
                     saveBitmapToGallery(surfaceBitmap)
                 } else {
-                    Toast.makeText(this, "Screenshot failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.screenshot_failed), Toast.LENGTH_SHORT).show()
                     Log.e(TAG, "Screenshot failed")
                 }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error taking screenshot", e)
-                Toast.makeText(this, "Screenshot error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.screenshot_error, e.message), Toast.LENGTH_SHORT).show()
             }
         } ?: run {
-            Toast.makeText(this, "Surface not available", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.surface_not_available), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -837,16 +837,16 @@ class RtspPlayerActivity : AppCompatActivity() {
                 outputStream?.use { stream ->
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)
                 }
-                Toast.makeText(this, "Screenshot saved to gallery", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.screenshot_saved), Toast.LENGTH_SHORT).show()
                 Log.i(TAG, "Screenshot saved successfully to: $imageUri")
             } ?: run {
-                Toast.makeText(this, "Failed to create image file", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.create_image_file_failed), Toast.LENGTH_SHORT).show()
                 Log.e(TAG, "Failed to create image URI")
             }
 
         } catch (e: Exception) {
             Log.e(TAG, "Error saving screenshot to gallery", e)
-            Toast.makeText(this, "Failed to save screenshot: ${e.message}", Toast.LENGTH_SHORT)
+            Toast.makeText(this, getString(R.string.save_screenshot_failed, e.message), Toast.LENGTH_SHORT)
                 .show()
         }
     }
