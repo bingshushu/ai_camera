@@ -109,7 +109,8 @@ fun DrawScope.drawCircleCenterStyle(
     style: CircleCenterStyle,
     center: Offset,
     color: Color,
-    scale: Float = 1f
+    scale: Float = 1f,
+    circleRadius: Float? = null
 ) {
     val strokeWidth = 2f / scale
     val baseSize = 8f / scale
@@ -142,19 +143,19 @@ fun DrawScope.drawCircleCenterStyle(
         }
         
         CircleCenterStyle.LARGE_CROSS -> {
-            val crossSize = baseSize * 2f
-            // 水平线
+            val crossRadius = circleRadius ?: (baseSize * 2f)
+            // 水平线 - 延伸到圆的边缘
             drawLine(
                 color = color,
-                start = Offset(center.x - crossSize, center.y),
-                end = Offset(center.x + crossSize, center.y),
+                start = Offset(center.x - crossRadius, center.y),
+                end = Offset(center.x + crossRadius, center.y),
                 strokeWidth = strokeWidth
             )
-            // 垂直线
+            // 垂直线 - 延伸到圆的边缘
             drawLine(
                 color = color,
-                start = Offset(center.x, center.y - crossSize),
-                end = Offset(center.x, center.y + crossSize),
+                start = Offset(center.x, center.y - crossRadius),
+                end = Offset(center.x, center.y + crossRadius),
                 strokeWidth = strokeWidth
             )
         }
@@ -169,37 +170,44 @@ fun DrawScope.drawCircleCenterStyle(
         }
         
         CircleCenterStyle.CROSS_WITH_CIRCLE -> {
-            // 外圈 - 粗线条
+            val innerCircleRadius = baseSize * 1.2f
+            val crossExtension = circleRadius ?: (baseSize * 2f)
+            
+            // 绘制十字 - 延伸到外圆的边缘
+            val crossStrokeWidth = strokeWidth
+            // 水平线 - 从左边延伸到圆边，从圆边延伸到右边
+            drawLine(
+                color = color,
+                start = Offset(center.x - crossExtension, center.y),
+                end = Offset(center.x - innerCircleRadius, center.y),
+                strokeWidth = crossStrokeWidth
+            )
+            drawLine(
+                color = color,
+                start = Offset(center.x + innerCircleRadius, center.y),
+                end = Offset(center.x + crossExtension, center.y),
+                strokeWidth = crossStrokeWidth
+            )
+            // 垂直线 - 从上边延伸到圆边，从圆边延伸到下边
+            drawLine(
+                color = color,
+                start = Offset(center.x, center.y - crossExtension),
+                end = Offset(center.x, center.y - innerCircleRadius),
+                strokeWidth = crossStrokeWidth
+            )
+            drawLine(
+                color = color,
+                start = Offset(center.x, center.y + innerCircleRadius),
+                end = Offset(center.x, center.y + crossExtension),
+                strokeWidth = crossStrokeWidth
+            )
+            
+            // 中间的圆
             drawCircle(
                 color = color,
-                radius = baseSize * 1.5f,
+                radius = innerCircleRadius,
                 center = center,
-                style = Stroke(width = strokeWidth * 2f)
-            )
-            
-            // 内部十字 - 细线条
-            val crossSize = baseSize * 0.8f
-            val innerStrokeWidth = strokeWidth * 0.8f
-            // 水平线
-            drawLine(
-                color = color,
-                start = Offset(center.x - crossSize, center.y),
-                end = Offset(center.x + crossSize, center.y),
-                strokeWidth = innerStrokeWidth
-            )
-            // 垂直线
-            drawLine(
-                color = color,
-                start = Offset(center.x, center.y - crossSize),
-                end = Offset(center.x, center.y + crossSize),
-                strokeWidth = innerStrokeWidth
-            )
-            
-            // 中心点
-            drawCircle(
-                color = color,
-                radius = 1.5f / scale,
-                center = center
+                style = Stroke(width = strokeWidth * 1.5f)
             )
         }
     }

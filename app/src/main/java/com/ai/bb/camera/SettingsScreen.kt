@@ -192,10 +192,12 @@ private fun CircleCenterStyleDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.circle_center_style)) },
         text = {
-            Column(
-                modifier = Modifier.selectableGroup()
+            LazyColumn(
+                modifier = Modifier
+                    .selectableGroup()
+                    .height(250.dp) // 限制对话框高度，使其可滚动
             ) {
-                CircleCenterStyle.values().forEach { style ->
+                items(CircleCenterStyle.values()) { style ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

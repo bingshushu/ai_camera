@@ -46,6 +46,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ai.bb.camera.ui.components.SmartActionButton
 import com.alexvas.rtsp.widget.RtspDataListener
 import com.alexvas.rtsp.widget.RtspStatusListener
 import com.alexvas.rtsp.widget.RtspSurfaceView
@@ -68,69 +69,74 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 @SuppressLint("LogNotTimber")
 class RtspPlayerActivity : AppCompatActivity() {
-    
+
     private var rtspSurfaceView: RtspSurfaceView? = null
     private var isConnected = false
     private var detector: OnnxCircleDetector? = null
     private lateinit var settingsManager: SettingsManager
-    
+
     override fun attachBaseContext(newBase: Context) {
         val settingsManager = AICameraApplication.getSettingsManager(newBase)
         val currentLanguage = settingsManager.getCurrentLanguage()
         val updatedContext = LanguageManager.updateLanguage(newBase, currentLanguage)
         super.attachBaseContext(updatedContext)
     }
-    
+
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val allGranted = permissions.values.all { it }
         if (!allGranted) {
-            Toast.makeText(this, "Storage permission is required to save screenshots", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                "Storage permission is required to save screenshots",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
-    
+
     companion object {
         private const val TAG = "RtspPlayerActivity"
         private const val DEFAULT_RTSP_URL = "rtsp://192.168.1.88/11"
         private const val DEFAULT_USERNAME = "admin"
         private const val DEFAULT_PASSWORD = "admin"
     }
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Set fullscreen and landscape mode
         setupFullscreenLandscape()
         detector = OnnxCircleDetector(this)
         settingsManager = AICameraApplication.getSettingsManager(this)
-        
+
         setContent {
             AICameraTheme {
                 RtspPlayerScreen()
             }
         }
     }
-    
+
     private fun setupFullscreenLandscape() {
         // Force landscape orientation
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        
+
         // Enable fullscreen mode
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val controller = WindowInsetsControllerCompat(window, window.decorView)
         controller.hide(WindowInsetsCompat.Type.systemBars())
-        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
         // Keep screen on
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        
+
         // Set background color to black
         window.statusBarColor = android.graphics.Color.BLACK
         window.navigationBarColor = android.graphics.Color.BLACK
     }
-    
+
     @Composable
     fun RtspPlayerScreen() {
         var isLoading by remember { mutableStateOf(false) }
@@ -145,27 +151,29 @@ class RtspPlayerActivity : AppCompatActivity() {
         var showOverlayImage by remember { mutableStateOf(false) } // 默认不显示图片
         var circles by remember { mutableStateOf(listOf<OnnxCircleDetector.Circle>()) }
         var isNozzleConfirmed by remember { mutableStateOf(false) } // 喷嘴确认状态
-        
+
         // RTSP视频播放器的变换状态
         var rtspScale by remember { mutableStateOf(1f) }
         var rtspOffset by remember { mutableStateOf(Offset.Zero) }
-        
+
         // 画面异常状态
         var hasStreamIssue by remember { mutableStateOf(false) }
-        
+
         // UI状态管理
         val hasOverlayImage = overlayBitmap != null
         val showDetectionButton = !hasOverlayImage || !showOverlayImage
         val showHideImageButton = hasOverlayImage && showOverlayImage
-        
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)) {
             // RTSP Surface View with 16:9 aspect ratio - 居中显示，不铺满屏幕  
             // 使用透明度隐藏视频而不是条件渲染，避免重连
             AndroidView(
                 factory = { ctx ->
                     RtspSurfaceView(ctx).apply {
                         rtspSurfaceView = this
-                        
+
                         // Set up status listener
                         setStatusListener(object : RtspStatusListener {
                             override fun onRtspStatusConnecting() {
@@ -173,7 +181,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 isLoading = true
                                 statusText = context.getString(R.string.connecting)
                             }
-                            
+
                             override fun onRtspStatusConnected() {
                                 Log.d(TAG, "RTSP Connected")
                                 isLoading = false
@@ -181,19 +189,19 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 isConnected = true
                                 hasStreamIssue = false
                             }
-                            
+
                             override fun onRtspStatusDisconnecting() {
                                 Log.d(TAG, "RTSP Disconnecting...")
                                 statusText = context.getString(R.string.disconnecting)
                             }
-                            
+
                             override fun onRtspStatusDisconnected() {
                                 Log.d(TAG, "RTSP Disconnected")
                                 isLoading = false
                                 statusText = context.getString(R.string.disconnected)
                                 isConnected = false
                             }
-                            
+
                             override fun onRtspStatusFailedUnauthorized() {
                                 Log.e(TAG, "RTSP Failed: Unauthorized")
                                 isLoading = false
@@ -201,7 +209,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 isConnected = false
                                 hasStreamIssue = true
                             }
-                            
+
                             override fun onRtspStatusFailed(message: String?) {
                                 Log.e(TAG, "RTSP Failed: $message")
                                 isLoading = false
@@ -209,18 +217,26 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 isConnected = false
                                 hasStreamIssue = true
                             }
-                            
+
                             override fun onRtspFirstFrameRendered() {
                                 Log.i(TAG, "First frame rendered")
                                 statusText = context.getString(R.string.playing)
                                 hasStreamIssue = false
                             }
-                            
+
                             override fun onRtspFrameSizeChanged(width: Int, height: Int) {
-                                Log.i(TAG, "RTSP视频流尺寸变化: ${width}x${height} (比例: ${String.format("%.3f", width.toFloat() / height.toFloat())})")
+                                Log.i(
+                                    TAG,
+                                    "RTSP视频流尺寸变化: ${width}x${height} (比例: ${
+                                        String.format(
+                                            "%.3f",
+                                            width.toFloat() / height.toFloat()
+                                        )
+                                    })"
+                                )
                             }
                         })
-                        
+
                         // Set up data listener
                         setDataListener(object : RtspDataListener {
                             override fun onRtspDataApplicationDataReceived(
@@ -232,7 +248,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 // Handle application data if needed
                             }
                         })
-                        
+
                         // Start RTSP connection
                         val uri = Uri.parse(DEFAULT_RTSP_URL)
                         init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-RTSP-Client")
@@ -251,16 +267,15 @@ class RtspPlayerActivity : AppCompatActivity() {
                         translationY = rtspOffset.y
                     )
             )
-            
 
-            
+
             // 覆盖图片和绘制层（与RTSP视频流保持相同的16:9比例和位置）
             if (overlayBitmap != null) {
                 val bm = overlayBitmap!!
                 val rtspViewW = remember { mutableStateOf(0) }
                 val rtspViewH = remember { mutableStateOf(0) }
                 val density = LocalDensity.current
-                
+
                 Box(
                     modifier = Modifier
                         .wrapContentSize() // 使用内容尺寸，与RTSP视频流保持一致
@@ -277,24 +292,37 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 if (bw > 0 && bh > 0) {
                                     // 检查图片和容器的宽高比
                                     val imageAspectRatio = bw.toFloat() / bh.toFloat()
-                                    val containerAspectRatio = sz.width.toFloat() / sz.height.toFloat()
-                                    
+                                    val containerAspectRatio =
+                                        sz.width.toFloat() / sz.height.toFloat()
+
                                     // 使用fit模式，确保整个图片都能显示在16:9区域内
                                     val scaleToFit = minOf(
                                         sz.width.toFloat() / bw.toFloat(),
                                         sz.height.toFloat() / bh.toFloat()
                                     )
-                                    
+
                                     baseScale = scaleToFit
                                     if (imageScale <= baseScale || imageScale <= 1f) {
                                         imageScale = scaleToFit // 只在初始化或重置时设置
                                     }
                                     overlaySize = IntSize(bw, bh)
-                                    
-                                    Log.i("RtspPlayerActivity", 
-                                        "图片尺寸: ${bw}x${bh} (${String.format("%.2f", imageAspectRatio)}), " +
-                                        "容器尺寸: ${sz.width}x${sz.height} (${String.format("%.2f", containerAspectRatio)}), " +
-                                        "缩放比例: ${String.format("%.3f", scaleToFit)}")
+
+                                    Log.i(
+                                        "RtspPlayerActivity",
+                                        "图片尺寸: ${bw}x${bh} (${
+                                            String.format(
+                                                "%.2f",
+                                                imageAspectRatio
+                                            )
+                                        }), " +
+                                                "容器尺寸: ${sz.width}x${sz.height} (${
+                                                    String.format(
+                                                        "%.2f",
+                                                        containerAspectRatio
+                                                    )
+                                                }), " +
+                                                "缩放比例: ${String.format("%.3f", scaleToFit)}"
+                                    )
                                 }
                             }
                         }
@@ -331,7 +359,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                     // 绘制层 - 总是显示（跟随图片变换，即使图片隐藏了也保留圆形绘制）
                     val widthDp = with(density) { overlaySize.width.toDp() }
                     val heightDp = with(density) { overlaySize.height.toDp() }
-                    
+
                     // 计算Canvas在16:9容器中的居中偏移（与图片保持一致）
                     val containerW = rtspViewW.value.toFloat()
                     val containerH = rtspViewH.value.toFloat()
@@ -339,7 +367,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                     val scaledImageH = overlaySize.height * baseScale
                     val centerOffsetX = (containerW - scaledImageW) / 2f
                     val centerOffsetY = (containerH - scaledImageH) / 2f
-                    
+
                     Canvas(
                         modifier = Modifier
                             .size(widthDp, heightDp)
@@ -355,26 +383,27 @@ class RtspPlayerActivity : AppCompatActivity() {
                                     detectTransformGestures { _, pan, zoom, _ ->
                                         val minScale = baseScale
                                         val maxScale = baseScale * 3f
-                                        val newScale = (imageScale * zoom).coerceIn(minScale, maxScale)
+                                        val newScale =
+                                            (imageScale * zoom).coerceIn(minScale, maxScale)
                                         imageScale = newScale
-                                        
+
                                         // 计算拖拽边界约束 - 限制图片离开屏幕边缘不超过1/3
                                         val newOffset = imageOffset + pan
                                         val containerW = rtspViewW.value.toFloat()
                                         val containerH = rtspViewH.value.toFloat()
                                         val scaledImageW = overlaySize.width * imageScale
                                         val scaledImageH = overlaySize.height * imageScale
-                                        
+
                                         // 计算允许移动的最大距离（图片尺寸的1/3）
                                         val maxOffsetX = scaledImageW / 4f
                                         val maxOffsetY = scaledImageH / 4f
-                                        
+
                                         // 计算边界
                                         val leftBound = -maxOffsetX
                                         val rightBound = containerW - scaledImageW + maxOffsetX
                                         val topBound = -maxOffsetY
                                         val bottomBound = containerH - scaledImageH + maxOffsetY
-                                        
+
                                         // 应用边界约束
                                         imageOffset = Offset(
                                             x = newOffset.x.coerceIn(leftBound, rightBound),
@@ -394,7 +423,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 "ROI" -> Color.Green
                                 else -> Color.White
                             }
-                            
+
                             // 绘制外圆
                             drawCircle(
                                 color = circleColor,
@@ -402,13 +431,14 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 center = Offset(c.cx, c.cy),
                                 style = stroke
                             )
-                            
+
                             // 绘制圆心 - 使用设置中的样式
                             drawCircleCenterStyle(
                                 style = settings.circleCenterStyle,
                                 center = Offset(c.cx, c.cy),
                                 color = circleColor,
-                                scale = imageScale
+                                scale = imageScale,
+                                circleRadius = c.r
                             )
                         }
                     }
@@ -427,7 +457,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                     )
                 }
             }
-            
+
             // Status text
             Text(
                 text = statusText,
@@ -436,40 +466,30 @@ class RtspPlayerActivity : AppCompatActivity() {
                     .align(Alignment.TopStart)
                     .padding(16.dp)
             )
-            
+
             // 设置按钮 - 右上角蓝色
-            FloatingActionButton(
+            SmartActionButton(
                 onClick = {
                     val intent = Intent(context, SettingsActivity::class.java)
                     startActivity(intent)
                 },
+                text = stringResource(R.string.settings),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(16.dp),
                 containerColor = Color(0xFF2196F3)
-            ) {
-                Text(
-                    text = stringResource(R.string.settings),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-            
-            
+            )
+
+
             // Floating screenshot button
-            FloatingActionButton(
+            SmartActionButton(
                 onClick = { takeScreenshot() },
+                text = stringResource(R.string.screenshot),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(24.dp),
                 containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Text(
-                    text = stringResource(R.string.screenshot),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
+            )
 
             // 右侧按钮组 - 垂直居中
             Column(
@@ -479,18 +499,49 @@ class RtspPlayerActivity : AppCompatActivity() {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // 喷嘴确认按钮 - 黄色，选中时橙色
-                FloatingActionButton(
+                SmartActionButton(
                     onClick = {
                         if (!isNozzleConfirmed) {
                             // 第一次点击：执行圆形检测并设置确认状态
-                            
+
                             // Debug模式下使用test.jpg，否则截取当前画面
-                            if (BuildConfig.DEBUG) {
-                                Log.i(TAG, "Debug模式：使用test.jpg进行圆形检测")
-                                val testBitmap = loadTestImageFromAssets()
-                                if (testBitmap != null) {
-                                    overlayBitmap = testBitmap.asImageBitmap()
-                                    showOverlayImage = true // 显示测试图片
+//                            if (BuildConfig.DEBUG) {
+//                                Log.i(TAG, "Debug模式：使用test.jpg进行圆形检测")
+//                                val testBitmap = loadTestImageFromAssets()
+//                                if (testBitmap != null) {
+//                                    overlayBitmap = testBitmap.asImageBitmap()
+//                                    showOverlayImage = true // 显示测试图片
+//
+//                                    // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
+//                                    imageScale = baseScale
+//                                    imageOffset = Offset.Zero
+//
+//                                    // 只有在AI识别开启时才运行模型
+//                                    if (settings.aiCircleRecognitionEnabled) {
+//                                        // Run model to detect circles
+//                                        Log.i(TAG, "开始运行圆形检测...")
+//                                        val list = detector?.detect(testBitmap) ?: emptyList()
+//                                        circles = list
+//                                        Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
+//                                        list.forEach { circle ->
+//                                            Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+//                                        }
+//                                    } else {
+//                                        circles = emptyList()
+//                                        Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
+//                                    }
+//
+//                                    // 设置确认状态
+//                                    isNozzleConfirmed = true
+//                                } else {
+//                                    Toast.makeText(context, "加载测试图片失败", Toast.LENGTH_SHORT).show()
+//                                }
+//                            } else {
+                            // 生产模式：截取当前画面
+                            captureFrameBitmap { bmp ->
+                                if (bmp != null) {
+                                    overlayBitmap = bmp.asImageBitmap()
+                                    showOverlayImage = true // 显示截取的图片
 
                                     // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
                                     imageScale = baseScale
@@ -500,55 +551,33 @@ class RtspPlayerActivity : AppCompatActivity() {
                                     if (settings.aiCircleRecognitionEnabled) {
                                         // Run model to detect circles
                                         Log.i(TAG, "开始运行圆形检测...")
-                                        val list = detector?.detect(testBitmap) ?: emptyList()
+                                        val list = detector?.detect(bmp) ?: emptyList()
                                         circles = list
                                         Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
                                         list.forEach { circle ->
-                                            Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                            Log.i(
+                                                TAG,
+                                                "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${
+                                                    String.format(
+                                                        "%.3f",
+                                                        circle.confidence
+                                                    )
+                                                }"
+                                            )
                                         }
                                     } else {
                                         circles = emptyList()
                                         Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
                                     }
-                                    
+
                                     // 设置确认状态
                                     isNozzleConfirmed = true
                                 } else {
-                                    Toast.makeText(context, "加载测试图片失败", Toast.LENGTH_SHORT).show()
-                                }
-                            } else {
-                                // 生产模式：截取当前画面
-                                captureFrameBitmap { bmp ->
-                                    if (bmp != null) {
-                                        overlayBitmap = bmp.asImageBitmap()
-                                        showOverlayImage = true // 显示截取的图片
-
-                                        // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
-                                        imageScale = baseScale
-                                        imageOffset = Offset.Zero
-
-                                        // 只有在AI识别开启时才运行模型
-                                        if (settings.aiCircleRecognitionEnabled) {
-                                            // Run model to detect circles
-                                            Log.i(TAG, "开始运行圆形检测...")
-                                            val list = detector?.detect(bmp) ?: emptyList()
-                                            circles = list
-                                            Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
-                                            list.forEach { circle ->
-                                                Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
-                                            }
-                                        } else {
-                                            circles = emptyList()
-                                            Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
-                                        }
-                                        
-                                        // 设置确认状态
-                                        isNozzleConfirmed = true
-                                    } else {
-                                        Toast.makeText(context, "覆盖截图失败", Toast.LENGTH_SHORT).show()
-                                    }
+                                    Toast.makeText(context, "覆盖截图失败", Toast.LENGTH_SHORT)
+                                        .show()
                                 }
                             }
+//                            }
                         } else {
                             // 第二次点击：还原所有设置
                             imageScale = 1f
@@ -561,79 +590,88 @@ class RtspPlayerActivity : AppCompatActivity() {
                             isNozzleConfirmed = false
                         }
                     },
-                    containerColor = if (isNozzleConfirmed) Color(0xFFFF9800) else Color(0xFFFFEB3B)
-                ) {
-                    Text(
-                        text = stringResource(R.string.nozzle_confirm),
-                        color = Color.Black,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-                
+                    text = stringResource(R.string.nozzle_confirm),
+                    containerColor = if (isNozzleConfirmed) Color(0xFFFF9800) else Color(0xFFFFEB3B),
+                    contentColor = Color.Black
+                )
+
                 // 红光对中按钮 - 红色，隐藏时占位
-                FloatingActionButton(
-                    onClick = { 
-                        if (showHideImageButton) {
+                if (showHideImageButton) {
+                    SmartActionButton(
+                        onClick = {
                             // 将图片的缩放和位置应用到RTSP视频播放器
                             rtspScale = imageScale
                             rtspOffset = imageOffset
-                            
+
                             // 隐藏图片但保留圆形绘制
                             showOverlayImage = false
-                            
-                            Log.i(TAG, "红光对中: 应用变换到RTSP播放器 - 缩放: ${String.format("%.3f", rtspScale)}, 偏移: (${rtspOffset.x.toInt()}, ${rtspOffset.y.toInt()})")
-                        }
-                    },
-                    containerColor = if (showHideImageButton) Color(0xFFF44336) else Color.Transparent,
-                    modifier = Modifier.alpha(if (showHideImageButton) 1f else 0f)
-                ) {
-                    if (showHideImageButton) {
-                        Text(
-                            text = stringResource(R.string.red_light_align),
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
+
+                            Log.i(
+                                TAG,
+                                "红光对中: 应用变换到RTSP播放器 - 缩放: ${
+                                    String.format(
+                                        "%.3f",
+                                        rtspScale
+                                    )
+                                }, 偏移: (${rtspOffset.x.toInt()}, ${rtspOffset.y.toInt()})"
+                            )
+                        },
+                        text = stringResource(R.string.red_light_align),
+                        containerColor = Color(0xFFF44336),
+                        contentColor = Color.White
+                    )
+                } else {
+                    // 占位按钮，保持布局一致
+                    SmartActionButton(
+                        onClick = {},
+                        text = "",
+                        containerColor = Color.Transparent,
+                        modifier = Modifier.alpha(0f)
+                    )
                 }
             }
 
-            
+
             // 重试按钮 - 当画面异常时显示，左上角绿色
             if (hasStreamIssue) {
-                FloatingActionButton(
+                SmartActionButton(
                     onClick = {
                         Log.i(TAG, "重试连接RTSP流")
                         hasStreamIssue = false
                         isLoading = true
                         statusText = context.getString(R.string.retrying)
-                        
+
                         // 停止当前连接并重新开始
                         rtspSurfaceView?.let { surfaceView ->
                             if (surfaceView.isStarted()) {
                                 surfaceView.stop()
                             }
-                            
+
                             // 重新初始化连接
                             val uri = Uri.parse(DEFAULT_RTSP_URL)
-                            surfaceView.init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-RTSP-Client")
-                            surfaceView.start(requestVideo = true, requestAudio = true, requestApplication = false)
+                            surfaceView.init(
+                                uri,
+                                DEFAULT_USERNAME,
+                                DEFAULT_PASSWORD,
+                                "AICamera-RTSP-Client"
+                            )
+                            surfaceView.start(
+                                requestVideo = true,
+                                requestAudio = true,
+                                requestApplication = false
+                            )
                         }
                     },
+                    text = stringResource(R.string.retry),
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(16.dp),
                     containerColor = Color(0xFF4CAF50)
-                ) {
-                    Text(
-                        text = stringResource(R.string.retry),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
+                )
             }
         }
     }
-    
+
     private fun loadTestImageFromAssets(): Bitmap? {
         return try {
             val inputStream = assets.open("test.jpg")
@@ -643,20 +681,20 @@ class RtspPlayerActivity : AppCompatActivity() {
             null
         }
     }
-    
+
     private fun takeScreenshot() {
         rtspSurfaceView?.let { surfaceView ->
             if (!isConnected) {
                 Toast.makeText(this, "RTSP not connected", Toast.LENGTH_SHORT).show()
                 return
             }
-            
+
             // Check permissions first
             if (!checkStoragePermissions()) {
                 requestStoragePermissions()
                 return
             }
-            
+
             try {
                 // Create bitmap with surface dimensions
                 val w = if (surfaceView.width > 0) surfaceView.width else 1920
@@ -667,14 +705,14 @@ class RtspPlayerActivity : AppCompatActivity() {
                 val thread = HandlerThread("ScreenshotHelper")
                 thread.start()
                 val handler = Handler(thread.looper)
-                
+
                 val listener = PixelCopy.OnPixelCopyFinishedListener { copyResult ->
                     success.set(copyResult == PixelCopy.SUCCESS)
                     synchronized(lock) {
                         lock.notify()
                     }
                 }
-                
+
                 synchronized(lock) {
                     PixelCopy.request(
                         surfaceView.holder.surface,
@@ -684,9 +722,9 @@ class RtspPlayerActivity : AppCompatActivity() {
                     )
                     lock.wait(3000) // Wait max 3 seconds
                 }
-                
+
                 thread.quitSafely()
-                
+
                 if (success.get()) {
                     // Save bitmap to gallery
                     saveBitmapToGallery(surfaceBitmap)
@@ -694,7 +732,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                     Toast.makeText(this, "Screenshot failed", Toast.LENGTH_SHORT).show()
                     Log.e(TAG, "Screenshot failed")
                 }
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error taking screenshot", e)
                 Toast.makeText(this, "Screenshot error: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -746,13 +784,22 @@ class RtspPlayerActivity : AppCompatActivity() {
 
     private fun checkStoragePermissions(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.READ_MEDIA_IMAGES
+            ) == PackageManager.PERMISSION_GRANTED
         } else {
-            ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(
+                        this,
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+                    ) == PackageManager.PERMISSION_GRANTED
         }
     }
-    
+
     private fun requestStoragePermissions() {
         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(android.Manifest.permission.READ_MEDIA_IMAGES)
@@ -764,23 +811,27 @@ class RtspPlayerActivity : AppCompatActivity() {
         }
         requestPermissionLauncher.launch(permissions)
     }
-    
+
     private fun saveBitmapToGallery(bitmap: Bitmap) {
         try {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val filename = "RTSP_Screenshot_$timestamp.jpg"
-            
+
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
                 put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/AICamera")
+                    put(
+                        MediaStore.MediaColumns.RELATIVE_PATH,
+                        Environment.DIRECTORY_PICTURES + "/AICamera"
+                    )
                 }
             }
-            
+
             val contentResolver = contentResolver
-            val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            
+            val uri =
+                contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
             uri?.let { imageUri ->
                 val outputStream: OutputStream? = contentResolver.openOutputStream(imageUri)
                 outputStream?.use { stream ->
@@ -792,13 +843,14 @@ class RtspPlayerActivity : AppCompatActivity() {
                 Toast.makeText(this, "Failed to create image file", Toast.LENGTH_SHORT).show()
                 Log.e(TAG, "Failed to create image URI")
             }
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Error saving screenshot to gallery", e)
-            Toast.makeText(this, "Failed to save screenshot: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Failed to save screenshot: ${e.message}", Toast.LENGTH_SHORT)
+                .show()
         }
     }
-    
+
     override fun onDestroy() {
         super.onDestroy()
         rtspSurfaceView?.stop()
@@ -806,12 +858,12 @@ class RtspPlayerActivity : AppCompatActivity() {
         detector?.close()
         detector = null
     }
-    
+
     override fun onPause() {
         super.onPause()
         rtspSurfaceView?.takeIf { it.isStarted() }?.stop()
     }
-    
+
     override fun onResume() {
         super.onResume()
         rtspSurfaceView?.takeIf { !it.isStarted() }?.let {
