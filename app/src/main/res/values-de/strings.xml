@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">AICamera</string>
+    
+    <!-- Settings -->
+    <string name="settings">Einstellungen</string>
+    <string name="ai_circle_recognition">KI-Kreiserkennung</string>
+    <string name="ai_circle_recognition_description">KI-Modellerkennung und Kreismittelmarkierung aktivieren</string>
+    <string name="circle_center_style">Kreismittelstil</string>
+    <string name="circle_center_style_description">Anzeigestil für Kreismittelmarkierung auswählen</string>
+    <string name="language">Sprache</string>
+    <string name="language_description">Sprache der Anwendungsoberfläche auswählen</string>
+    
+    <!-- Circle center styles -->
+    <string name="style_dot">Punkt</string>
+    <string name="style_small_cross">Kleines Kreuz ×</string>
+    <string name="style_large_cross">Großes Kreuz ×</string>
+    <string name="style_small_circle">Kleiner Kreis</string>
+    <string name="style_cross_with_circle">Kreuz × + Kleiner Kreis</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">System Folgen</string>
+    <string name="lang_chinese">简体中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_french">Français</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_portuguese">Português</string>
+    <string name="lang_italian">Italiano</string>
+    
+    <!-- Main UI -->
+    <string name="screenshot">Bildschirmfoto</string>
+    <string name="nozzle_confirm">Düse Bestätigen</string>
+    <string name="red_light_align">Rotes Licht Ausrichten</string>
+    <string name="retry">Wiederholen</string>
+    <string name="connecting">Verbinde...</string>
+    <string name="connected">Verbunden</string>
+    <string name="disconnecting">Trenne...</string>
+    <string name="disconnected">Getrennt</string>
+    <string name="playing">Wiedergabe</string>
+    <string name="auth_failed">Authentifizierung Fehlgeschlagen</string>
+    <string name="error">Fehler</string>
+    <string name="retrying">Erneuter Versuch...</string>
+</resources>

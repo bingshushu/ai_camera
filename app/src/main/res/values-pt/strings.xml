@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">AICamera</string>
+    
+    <!-- Settings -->
+    <string name="settings">Configurações</string>
+    <string name="ai_circle_recognition">Reconhecimento de Círculo IA</string>
+    <string name="ai_circle_recognition_description">Ativar reconhecimento do modelo IA e marcação do centro do círculo</string>
+    <string name="circle_center_style">Estilo do Centro do Círculo</string>
+    <string name="circle_center_style_description">Selecionar estilo de exibição da marcação do centro do círculo</string>
+    <string name="language">Idioma</string>
+    <string name="language_description">Selecionar idioma da interface do aplicativo</string>
+    
+    <!-- Circle center styles -->
+    <string name="style_dot">Ponto</string>
+    <string name="style_small_cross">Cruz Pequena ×</string>
+    <string name="style_large_cross">Cruz Grande ×</string>
+    <string name="style_small_circle">Círculo Pequeno</string>
+    <string name="style_cross_with_circle">Cruz × + Círculo Pequeno</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">Seguir Sistema</string>
+    <string name="lang_chinese">简体中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_french">Français</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_portuguese">Português</string>
+    <string name="lang_italian">Italiano</string>
+    
+    <!-- Main UI -->
+    <string name="screenshot">Captura de Tela</string>
+    <string name="nozzle_confirm">Confirmar Bico</string>
+    <string name="red_light_align">Alinhar Luz Vermelha</string>
+    <string name="retry">Repetir</string>
+    <string name="connecting">Conectando...</string>
+    <string name="connected">Conectado</string>
+    <string name="disconnecting">Desconectando...</string>
+    <string name="disconnected">Desconectado</string>
+    <string name="playing">Reproduzindo</string>
+    <string name="auth_failed">Falha na Autenticação</string>
+    <string name="error">Erro</string>
+    <string name="retrying">Tentando Novamente...</string>
+</resources>

@@ -33,6 +33,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -41,6 +42,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.alexvas.rtsp.widget.RtspDataListener
 import com.alexvas.rtsp.widget.RtspStatusListener
 import com.alexvas.rtsp.widget.RtspSurfaceView
@@ -67,6 +69,7 @@ class RtspPlayerActivity : ComponentActivity() {
     private var rtspSurfaceView: RtspSurfaceView? = null
     private var isConnected = false
     private var detector: OnnxCircleDetector? = null
+    private lateinit var settingsManager: SettingsManager
     
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -91,10 +94,11 @@ class RtspPlayerActivity : ComponentActivity() {
         // Set fullscreen and landscape mode
         setupFullscreenLandscape()
         detector = OnnxCircleDetector(this)
+        settingsManager = SettingsManager(this)
         
         setContent {
             AICameraTheme {
-                RtspPlayerScreen()
+                MainAppScreen()
             }
         }
     }
@@ -118,10 +122,27 @@ class RtspPlayerActivity : ComponentActivity() {
     }
     
     @Composable
-    fun RtspPlayerScreen() {
+    fun MainAppScreen() {
+        var showSettings by remember { mutableStateOf(false) }
+        
+        if (showSettings) {
+            SettingsScreen(
+                settingsManager = settingsManager,
+                onNavigateBack = { showSettings = false }
+            )
+        } else {
+            RtspPlayerScreen(
+                onOpenSettings = { showSettings = true }
+            )
+        }
+    }
+    
+    @Composable
+    fun RtspPlayerScreen(onOpenSettings: () -> Unit) {
         var isLoading by remember { mutableStateOf(false) }
-        var statusText by remember { mutableStateOf("Disconnected") }
         val context = LocalContext.current
+        var statusText by remember { mutableStateOf(context.getString(R.string.disconnected)) }
+        val settings by settingsManager.settings.collectAsStateWithLifecycle()
         var overlayBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
         var overlaySize by remember { mutableStateOf(IntSize(0, 0)) }
         var imageScale by remember { mutableStateOf(1f) }
@@ -156,33 +177,33 @@ class RtspPlayerActivity : ComponentActivity() {
                             override fun onRtspStatusConnecting() {
                                 Log.d(TAG, "RTSP Connecting...")
                                 isLoading = true
-                                statusText = "Connecting..."
+                                statusText = context.getString(R.string.connecting)
                             }
                             
                             override fun onRtspStatusConnected() {
                                 Log.d(TAG, "RTSP Connected")
                                 isLoading = false
-                                statusText = "Connected"
+                                statusText = context.getString(R.string.connected)
                                 isConnected = true
                                 hasStreamIssue = false
                             }
                             
                             override fun onRtspStatusDisconnecting() {
                                 Log.d(TAG, "RTSP Disconnecting...")
-                                statusText = "Disconnecting..."
+                                statusText = context.getString(R.string.disconnecting)
                             }
                             
                             override fun onRtspStatusDisconnected() {
                                 Log.d(TAG, "RTSP Disconnected")
                                 isLoading = false
-                                statusText = "Disconnected"
+                                statusText = context.getString(R.string.disconnected)
                                 isConnected = false
                             }
                             
                             override fun onRtspStatusFailedUnauthorized() {
                                 Log.e(TAG, "RTSP Failed: Unauthorized")
                                 isLoading = false
-                                statusText = "Authentication Failed"
+                                statusText = context.getString(R.string.auth_failed)
                                 isConnected = false
                                 hasStreamIssue = true
                             }
@@ -190,14 +211,14 @@ class RtspPlayerActivity : ComponentActivity() {
                             override fun onRtspStatusFailed(message: String?) {
                                 Log.e(TAG, "RTSP Failed: $message")
                                 isLoading = false
-                                statusText = "Error: $message"
+                                statusText = "${context.getString(R.string.error)}: $message"
                                 isConnected = false
                                 hasStreamIssue = true
                             }
                             
                             override fun onRtspFirstFrameRendered() {
                                 Log.i(TAG, "First frame rendered")
-                                statusText = "Playing"
+                                statusText = context.getString(R.string.playing)
                                 hasStreamIssue = false
                             }
                             
@@ -371,7 +392,6 @@ class RtspPlayerActivity : ComponentActivity() {
                     ) {
                         // 绘制圆形 - 在图像坐标空间中绘制，这样它们会一起变换
                         val strokeWidth = 24f / imageScale  // 根据缩放调整线条宽度，增加粗细
-                        val centerStrokeWidth = 3f / imageScale  // 圆心线条宽度
                         val stroke = Stroke(width = strokeWidth)
                         circles.forEach { c ->
                             // 根据类别选择颜色
@@ -389,28 +409,12 @@ class RtspPlayerActivity : ComponentActivity() {
                                 style = stroke
                             )
                             
-                            // 绘制中心点
-                            drawCircle(
+                            // 绘制圆心 - 使用设置中的样式
+                            drawCircleCenterStyle(
+                                style = settings.circleCenterStyle,
+                                center = Offset(c.cx, c.cy),
                                 color = circleColor,
-                                radius = 6f / imageScale, // 根据缩放调整中心点大小
-                                center = Offset(c.cx, c.cy)
-                            )
-                            
-                            // 绘制中心十字标记，提高可见性
-                            val crossSize = 15f / imageScale
-                            // 水平线
-                            drawLine(
-                                color = circleColor,
-                                start = Offset(c.cx - crossSize, c.cy),
-                                end = Offset(c.cx + crossSize, c.cy),
-                                strokeWidth = centerStrokeWidth
-                            )
-                            // 垂直线  
-                            drawLine(
-                                color = circleColor,
-                                start = Offset(c.cx, c.cy - crossSize),
-                                end = Offset(c.cx, c.cy + crossSize),
-                                strokeWidth = centerStrokeWidth
+                                scale = imageScale
                             )
                         }
                     }
@@ -441,17 +445,14 @@ class RtspPlayerActivity : ComponentActivity() {
             
             // 设置按钮 - 右上角蓝色
             FloatingActionButton(
-                onClick = {
-                    // TODO: 实现设置功能
-                    Log.i(TAG, "打开设置")
-                },
+                onClick = onOpenSettings,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(16.dp),
                 containerColor = Color(0xFF2196F3)
             ) {
                 Text(
-                    text = "设置",
+                    text = stringResource(R.string.settings),
                     color = Color.White,
                     style = MaterialTheme.typography.labelMedium
                 )
@@ -467,7 +468,7 @@ class RtspPlayerActivity : ComponentActivity() {
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Text(
-                    text = "截图",
+                    text = stringResource(R.string.screenshot),
                     color = Color.White,
                     style = MaterialTheme.typography.labelMedium
                 )
@@ -494,13 +495,19 @@ class RtspPlayerActivity : ComponentActivity() {
                                     imageScale = baseScale
                                     imageOffset = Offset.Zero
 
-                                    // Run model to detect circles
-                                    Log.i(TAG, "开始运行圆形检测...")
-                                    val list = detector?.detect(bmp) ?: emptyList()
-                                    circles = list
-                                    Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
-                                    list.forEach { circle ->
-                                        Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                    // 只有在AI识别开启时才运行模型
+                                    if (settings.aiCircleRecognitionEnabled) {
+                                        // Run model to detect circles
+                                        Log.i(TAG, "开始运行圆形检测...")
+                                        val list = detector?.detect(bmp) ?: emptyList()
+                                        circles = list
+                                        Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
+                                        list.forEach { circle ->
+                                            Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                        }
+                                    } else {
+                                        circles = emptyList()
+                                        Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
                                     }
                                     
                                     // 设置确认状态
@@ -524,7 +531,7 @@ class RtspPlayerActivity : ComponentActivity() {
                     containerColor = if (isNozzleConfirmed) Color(0xFFFF9800) else Color(0xFFFFEB3B)
                 ) {
                     Text(
-                        text = "喷嘴确认",
+                        text = stringResource(R.string.nozzle_confirm),
                         color = Color.Black,
                         style = MaterialTheme.typography.labelMedium
                     )
@@ -549,7 +556,7 @@ class RtspPlayerActivity : ComponentActivity() {
                 ) {
                     if (showHideImageButton) {
                         Text(
-                            text = "红光对中",
+                            text = stringResource(R.string.red_light_align),
                             color = Color.White,
                             style = MaterialTheme.typography.labelMedium
                         )
@@ -565,7 +572,7 @@ class RtspPlayerActivity : ComponentActivity() {
                         Log.i(TAG, "重试连接RTSP流")
                         hasStreamIssue = false
                         isLoading = true
-                        statusText = "Retrying..."
+                        statusText = context.getString(R.string.retrying)
                         
                         // 停止当前连接并重新开始
                         rtspSurfaceView?.let { surfaceView ->
@@ -585,7 +592,7 @@ class RtspPlayerActivity : ComponentActivity() {
                     containerColor = Color(0xFF4CAF50)
                 ) {
                     Text(
-                        text = "重试",
+                        text = stringResource(R.string.retry),
                         color = Color.White,
                         style = MaterialTheme.typography.labelMedium
                     )

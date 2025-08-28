@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">AICamera</string>
+    
+    <!-- Settings -->
+    <string name="settings">Configuración</string>
+    <string name="ai_circle_recognition">Reconocimiento de Círculo IA</string>
+    <string name="ai_circle_recognition_description">Habilitar reconocimiento del modelo IA y marcado del centro del círculo</string>
+    <string name="circle_center_style">Estilo del Centro del Círculo</string>
+    <string name="circle_center_style_description">Seleccionar estilo de visualización del marcado del centro del círculo</string>
+    <string name="language">Idioma</string>
+    <string name="language_description">Seleccionar idioma de la interfaz de la aplicación</string>
+    
+    <!-- Circle center styles -->
+    <string name="style_dot">Punto</string>
+    <string name="style_small_cross">Cruz Pequeña ×</string>
+    <string name="style_large_cross">Cruz Grande ×</string>
+    <string name="style_small_circle">Círculo Pequeño</string>
+    <string name="style_cross_with_circle">Cruz × + Círculo Pequeño</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">Seguir Sistema</string>
+    <string name="lang_chinese">简体中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_french">Français</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_portuguese">Português</string>
+    <string name="lang_italian">Italiano</string>
+    
+    <!-- Main UI -->
+    <string name="screenshot">Captura de Pantalla</string>
+    <string name="nozzle_confirm">Confirmar Boquilla</string>
+    <string name="red_light_align">Alinear Luz Roja</string>
+    <string name="retry">Reintentar</string>
+    <string name="connecting">Conectando...</string>
+    <string name="connected">Conectado</string>
+    <string name="disconnecting">Desconectando...</string>
+    <string name="disconnected">Desconectado</string>
+    <string name="playing">Reproduciendo</string>
+    <string name="auth_failed">Falló la Autenticación</string>
+    <string name="error">Error</string>
+    <string name="retrying">Reintentando...</string>
+</resources>
