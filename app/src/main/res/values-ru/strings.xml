@@ -54,4 +54,17 @@
     <string name="screenshot_saved">Скриншот сохранен в галерею</string>
     <string name="create_image_file_failed">Не удалось создать файл изображения</string>
     <string name="save_screenshot_failed">Не удалось сохранить скриншот: %s</string>
+    
+    <!-- Model Update -->
+    <string name="model_update_title">Обновление алгоритма</string>
+    <string name="model_update_message">Найдена новая версия алгоритма. Обновить сейчас?</string>
+    <string name="model_update_confirm">Подтвердить</string>
+    <string name="model_update_cancel">Отмена</string>
+    <string name="model_download_title">Загрузка алгоритма</string>
+    <string name="model_downloading">Обновление алгоритма, пожалуйста, подождите...</string>
+    <string name="model_downloading_progress">Обновление алгоритма... %d%%</string>
+    <string name="model_update_success">Обновление алгоритма успешно</string>
+    <string name="model_update_failed">Ошибка обновления алгоритма</string>
+    <string name="model_detection_failed">Ошибка обнаружения: %s</string>
+    <string name="detecting">Обнаружение...</string>
 </resources>

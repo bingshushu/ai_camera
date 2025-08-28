@@ -54,4 +54,17 @@
     <string name="screenshot_saved">Captura guardada en galería</string>
     <string name="create_image_file_failed">Error al crear archivo de imagen</string>
     <string name="save_screenshot_failed">Error al guardar captura: %s</string>
+    
+    <!-- Model Update -->
+    <string name="model_update_title">Actualización de Algoritmo</string>
+    <string name="model_update_message">Nueva versión del algoritmo encontrada. ¿Actualizar ahora?</string>
+    <string name="model_update_confirm">Confirmar</string>
+    <string name="model_update_cancel">Cancelar</string>
+    <string name="model_download_title">Descarga de Algoritmo</string>
+    <string name="model_downloading">Actualizando algoritmo, por favor espere...</string>
+    <string name="model_downloading_progress">Actualizando algoritmo... %d%%</string>
+    <string name="model_update_success">Actualización de algoritmo exitosa</string>
+    <string name="model_update_failed">Error en actualización de algoritmo</string>
+    <string name="model_detection_failed">Error de detección: %s</string>
+    <string name="detecting">Detectando...</string>
 </resources>

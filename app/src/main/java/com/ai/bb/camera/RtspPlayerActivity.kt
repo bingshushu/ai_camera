@@ -46,6 +46,10 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.ai.bb.camera.ui.components.SmartActionButton
 import com.alexvas.rtsp.widget.RtspDataListener
 import com.alexvas.rtsp.widget.RtspStatusListener
@@ -74,6 +78,8 @@ class RtspPlayerActivity : AppCompatActivity() {
     private var isConnected = false
     private var detector: OnnxCircleDetector? = null
     private lateinit var settingsManager: SettingsManager
+    private lateinit var modelUpdateManager: ModelUpdateManager
+    private var windowInsetsController: WindowInsetsControllerCompat? = null
 
     override fun attachBaseContext(newBase: Context) {
         val settingsManager = AICameraApplication.getSettingsManager(newBase)
@@ -108,7 +114,8 @@ class RtspPlayerActivity : AppCompatActivity() {
 
         // Set fullscreen and landscape mode
         setupFullscreenLandscape()
-        detector = OnnxCircleDetector(this)
+        modelUpdateManager = ModelUpdateManager(this)
+        detector = OnnxCircleDetector(this, modelUpdateManager)
         settingsManager = AICameraApplication.getSettingsManager(this)
 
         setContent {
@@ -116,6 +123,8 @@ class RtspPlayerActivity : AppCompatActivity() {
                 RtspPlayerScreen()
             }
         }
+        
+        checkForModelUpdate()
     }
 
     private fun setupFullscreenLandscape() {
@@ -124,10 +133,8 @@ class RtspPlayerActivity : AppCompatActivity() {
 
         // Enable fullscreen mode
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        val controller = WindowInsetsControllerCompat(window, window.decorView)
-        controller.hide(WindowInsetsCompat.Type.systemBars())
-        controller.systemBarsBehavior =
-            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController = WindowInsetsControllerCompat(window, window.decorView)
+        enterFullscreen()
 
         // Keep screen on
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -135,6 +142,38 @@ class RtspPlayerActivity : AppCompatActivity() {
         // Set background color to black
         window.statusBarColor = android.graphics.Color.BLACK
         window.navigationBarColor = android.graphics.Color.BLACK
+        
+        // Monitor fullscreen state changes
+        setupFullscreenMonitor()
+    }
+
+    private fun enterFullscreen() {
+        windowInsetsController?.let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    private fun setupFullscreenMonitor() {
+        // Monitor system bar visibility changes
+        var lastRestoreTime = 0L
+        window.decorView.setOnApplyWindowInsetsListener { view, insets ->
+            val insetsCompat = WindowInsetsCompat.toWindowInsetsCompat(insets, view)
+            val systemBarsVisible = insetsCompat.isVisible(WindowInsetsCompat.Type.systemBars())
+            val currentTime = System.currentTimeMillis()
+            
+            if (systemBarsVisible && currentTime - lastRestoreTime > 500) {
+                // System bars became visible, hide them again after a delay
+                // Only if it's been at least 500ms since last restore to avoid rapid toggling
+                lastRestoreTime = currentTime
+                view.postDelayed({
+                    if (!isFinishing && !isDestroyed) {
+                        enterFullscreen()
+                    }
+                }, 100) // Small delay to avoid fighting with system
+            }
+            insets
+        }
     }
 
     @Composable
@@ -161,6 +200,7 @@ class RtspPlayerActivity : AppCompatActivity() {
 
         // 按钮状态
         var isRedLightAligned by remember { mutableStateOf(false) } // 红光对中状态
+        var isDetecting by remember { mutableStateOf(false) } // 模型检测进行中状态
 
         // UI状态管理
         val hasOverlayImage = overlayBitmap != null
@@ -516,8 +556,11 @@ class RtspPlayerActivity : AppCompatActivity() {
                 // 喷嘴确认按钮 - 默认高级灰色，点击后绿色
                 SmartActionButton(
                     onClick = {
+                        if (isDetecting) return@SmartActionButton // 检测中时忽略点击
+                        
                         if (!isNozzleConfirmed) {
                             // 第一次点击：执行圆形检测并设置确认状态
+                            isDetecting = true // 开始检测，显示loading状态
 
                             // Debug模式下使用test.jpg，否则截取当前画面
                             if (BuildConfig.DEBUG) {
@@ -533,67 +576,93 @@ class RtspPlayerActivity : AppCompatActivity() {
 
                                     // 只有在AI识别开启时才运行模型
                                     if (settings.aiCircleRecognitionEnabled) {
-                                        // Run model to detect circles
-                                        Log.i(TAG, "开始运行圆形检测...")
-                                        val list = detector?.detect(testBitmap) ?: emptyList()
-                                        circles = list
-                                        Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
-                                        list.forEach { circle ->
-                                            Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                        // 使用协程在后台运行模型检测，避免阻塞UI
+                                        lifecycleScope.launch {
+                                            try {
+                                                Log.i(TAG, "开始运行圆形检测...")
+                                                val list = withContext(Dispatchers.IO) {
+                                                    detector?.detect(testBitmap) ?: emptyList()
+                                                }
+                                                circles = list
+                                                Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
+                                                list.forEach { circle ->
+                                                    Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                                }
+                                                // 设置确认状态
+                                                isNozzleConfirmed = true
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "模型检测异常", e)
+                                                Toast.makeText(context, getString(R.string.model_detection_failed, e.message), Toast.LENGTH_SHORT).show()
+                                            } finally {
+                                                isDetecting = false // 结束检测，隐藏loading状态
+                                            }
                                         }
                                     } else {
                                         circles = emptyList()
                                         Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
+                                        isNozzleConfirmed = true
+                                        isDetecting = false
                                     }
-
-                                    // 设置确认状态
-                                    isNozzleConfirmed = true
                                 } else {
                                     Toast.makeText(context, getString(R.string.test_image_load_failed), Toast.LENGTH_SHORT).show()
+                                    isDetecting = false
                                 }
                             } else {
-                            // 生产模式：截取当前画面
-                            captureFrameBitmap { bmp ->
-                                if (bmp != null) {
-                                    overlayBitmap = bmp.asImageBitmap()
-                                    showOverlayImage = true // 显示截取的图片
+                                // 生产模式：截取当前画面
+                                captureFrameBitmap { bmp ->
+                                    if (bmp != null) {
+                                        overlayBitmap = bmp.asImageBitmap()
+                                        showOverlayImage = true // 显示截取的图片
 
-                                    // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
-                                    imageScale = baseScale
-                                    imageOffset = Offset.Zero
+                                        // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
+                                        imageScale = baseScale
+                                        imageOffset = Offset.Zero
 
-                                    // 只有在AI识别开启时才运行模型
-                                    if (settings.aiCircleRecognitionEnabled) {
-                                        // Run model to detect circles
-                                        Log.i(TAG, "开始运行圆形检测...")
-                                        val list = detector?.detect(bmp) ?: emptyList()
-                                        circles = list
-                                        Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
-                                        list.forEach { circle ->
-                                            Log.i(
-                                                TAG,
-                                                "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${
-                                                    String.format(
-                                                        "%.3f",
-                                                        circle.confidence
-                                                    )
-                                                }"
-                                            )
+                                        // 只有在AI识别开启时才运行模型
+                                        if (settings.aiCircleRecognitionEnabled) {
+                                            // 使用协程在后台运行模型检测，避免阻塞UI
+                                            lifecycleScope.launch {
+                                                try {
+                                                    Log.i(TAG, "开始运行圆形检测...")
+                                                    val list = withContext(Dispatchers.IO) {
+                                                        detector?.detect(bmp) ?: emptyList()
+                                                    }
+                                                    circles = list
+                                                    Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
+                                                    list.forEach { circle ->
+                                                        Log.i(
+                                                            TAG,
+                                                            "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${
+                                                                String.format(
+                                                                    "%.3f",
+                                                                    circle.confidence
+                                                                )
+                                                            }"
+                                                        )
+                                                    }
+                                                    // 设置确认状态
+                                                    isNozzleConfirmed = true
+                                                } catch (e: Exception) {
+                                                    Log.e(TAG, "模型检测异常", e)
+                                                    Toast.makeText(context, getString(R.string.model_detection_failed, e.message), Toast.LENGTH_SHORT).show()
+                                                } finally {
+                                                    isDetecting = false // 结束检测，隐藏loading状态
+                                                }
+                                            }
+                                        } else {
+                                            circles = emptyList()
+                                            Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
+                                            isNozzleConfirmed = true
+                                            isDetecting = false
                                         }
                                     } else {
-                                        circles = emptyList()
-                                        Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
+                                        Toast.makeText(context, getString(R.string.capture_failed), Toast.LENGTH_SHORT)
+                                            .show()
+                                        isDetecting = false
                                     }
-
-                                    // 设置确认状态
-                                    isNozzleConfirmed = true
-                                } else {
-                                    Toast.makeText(context, getString(R.string.capture_failed), Toast.LENGTH_SHORT)
-                                        .show()
                                 }
                             }
-                            }
-                        } else {
+                        } else if (isNozzleConfirmed) {
                             // 第二次点击：还原所有设置
                             imageScale = 1f
                             imageOffset = Offset.Zero
@@ -604,11 +673,20 @@ class RtspPlayerActivity : AppCompatActivity() {
                             circles = emptyList()
                             isNozzleConfirmed = false
                             isRedLightAligned = false // 重置红光对中状态
+                            isDetecting = false // 重置检测状态
                         }
                     },
-                    text = stringResource(R.string.nozzle_confirm),
+                    text = when {
+                        isDetecting -> stringResource(R.string.detecting)
+                        isNozzleConfirmed -> stringResource(R.string.nozzle_confirm)
+                        else -> stringResource(R.string.nozzle_confirm)
+                    },
                     modifier = Modifier.width(120.dp),
-                    containerColor = if (isNozzleConfirmed) Color(0xFF4CAF50) else Color(0xFF6C6C6C), // 绿色或高级灰色
+                    containerColor = when {
+                        isDetecting -> Color(0xFFFF9800) // 橙色表示检测中
+                        isNozzleConfirmed -> Color(0xFF4CAF50) // 绿色表示已确认
+                        else -> Color(0xFF6C6C6C) // 高级灰色表示未确认
+                    },
                     contentColor = Color.White
                 )
 
@@ -870,6 +948,99 @@ class RtspPlayerActivity : AppCompatActivity() {
         detector = null
     }
 
+    private fun checkForModelUpdate() {
+        lifecycleScope.launch {
+            try {
+                val versionInfo = modelUpdateManager.checkForUpdate()
+                if (versionInfo != null) {
+                    showUpdateDialog(versionInfo)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "检查模型更新失败", e)
+            }
+        }
+    }
+
+    private fun showUpdateDialog(versionInfo: ModelVersionInfo) {
+        runOnUiThread {
+            val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.model_update_title))
+                .setMessage(getString(R.string.model_update_message))
+                .setPositiveButton(getString(R.string.model_update_confirm)) { _, _ ->
+                    startModelDownload(versionInfo)
+                }
+                .setNegativeButton(getString(R.string.model_update_cancel)) { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .setCancelable(false)
+                .create()
+            
+            // Restore fullscreen when dialog is dismissed
+            dialog.setOnDismissListener {
+                restoreFullscreenAfterDialog()
+            }
+            
+            dialog.show()
+        }
+    }
+
+    private fun startModelDownload(versionInfo: ModelVersionInfo) {
+        var progressDialog: androidx.appcompat.app.AlertDialog? = null
+        
+        runOnUiThread {
+            val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_1, null)
+            val textView = dialogView.findViewById<android.widget.TextView>(android.R.id.text1)
+            textView.text = getString(R.string.model_downloading)
+            textView.gravity = android.view.Gravity.CENTER
+            
+            progressDialog = androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.model_download_title))
+                .setView(dialogView)
+                .setCancelable(false)
+                .create()
+            
+            // Restore fullscreen when progress dialog is dismissed
+            progressDialog?.setOnDismissListener {
+                restoreFullscreenAfterDialog()
+            }
+            
+            progressDialog?.show()
+        }
+        
+        lifecycleScope.launch {
+            val success = modelUpdateManager.downloadModel(versionInfo) { progress ->
+                runOnUiThread {
+                    progressDialog?.let { dialog ->
+                        val textView = dialog.findViewById<android.widget.TextView>(android.R.id.text1)
+                        textView?.text = getString(R.string.model_downloading_progress, progress)
+                    }
+                }
+            }
+            
+            runOnUiThread {
+                progressDialog?.dismiss()
+                
+                if (success) {
+                    Toast.makeText(this@RtspPlayerActivity, getString(R.string.model_update_success), Toast.LENGTH_SHORT).show()
+                    // 重新初始化检测器以使用新模型
+                    detector?.close()
+                    detector = OnnxCircleDetector(this@RtspPlayerActivity, modelUpdateManager)
+                } else {
+                    Toast.makeText(this@RtspPlayerActivity, getString(R.string.model_update_failed), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun restoreFullscreenAfterDialog() {
+        // Post with delay to ensure dialog is fully dismissed
+        window.decorView.postDelayed({
+            if (!isFinishing && !isDestroyed) {
+                enterFullscreen()
+            }
+        }, 300) // Slightly longer delay for better stability
+    }
+
     override fun onPause() {
         super.onPause()
         rtspSurfaceView?.takeIf { it.isStarted() }?.stop()
@@ -877,8 +1048,20 @@ class RtspPlayerActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        
+        // Restore fullscreen mode
+        enterFullscreen()
+        
         rtspSurfaceView?.takeIf { !it.isStarted() }?.let {
             it.start(requestVideo = true, requestAudio = true, requestApplication = false)
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            // Restore fullscreen when window regains focus
+            enterFullscreen()
         }
     }
 }

@@ -11,6 +11,7 @@ import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import ai.onnxruntime.TensorInfo
 import ai.onnxruntime.NodeInfo
+import java.io.File
 import java.nio.FloatBuffer
 import kotlin.math.*
 
@@ -18,7 +19,7 @@ import kotlin.math.*
  * YOLOv8 ONNX模型检测器，专门用于检测圆形目标
  * 支持两个类别：ROI和RedCenter
  */
-class OnnxCircleDetector(context: Context) {
+class OnnxCircleDetector(context: Context, private val modelUpdateManager: ModelUpdateManager? = null) {
     
     /**
      * 检测结果数据类
@@ -58,7 +59,17 @@ class OnnxCircleDetector(context: Context) {
     private val classNames = arrayOf("ROI", "RedCenter") // 类别名称
 
     init {
-        val modelBytes = context.assets.open("model.onnx").use { it.readBytes() }
+        val modelBytes = if (modelUpdateManager?.hasDownloadedModel() == true) {
+            // 使用下载的最新模型
+            val modelPath = modelUpdateManager.getModelFilePath()
+            Log.i("OnnxCircleDetector", "使用下载的模型: $modelPath")
+            File(modelPath).readBytes()
+        } else {
+            // 使用assets中的默认模型
+            Log.i("OnnxCircleDetector", "使用assets中的默认模型")
+            context.assets.open("model.onnx").use { it.readBytes() }
+        }
+        
         session = env.createSession(modelBytes)
         
         // 从模型中获取输入尺寸

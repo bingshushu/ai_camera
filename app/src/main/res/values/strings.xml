@@ -54,4 +54,17 @@
     <string name="screenshot_saved">截图已保存到相册</string>
     <string name="create_image_file_failed">创建图片文件失败</string>
     <string name="save_screenshot_failed">保存截图失败: %s</string>
+    
+    <!-- Model Update -->
+    <string name="model_update_title">算法更新</string>
+    <string name="model_update_message">发现新的算法版本，是否更新？</string>
+    <string name="model_update_confirm">确认</string>
+    <string name="model_update_cancel">取消</string>
+    <string name="model_download_title">算法下载</string>
+    <string name="model_downloading">正在更新算法，请稍候...</string>
+    <string name="model_downloading_progress">正在更新算法... %d%%</string>
+    <string name="model_update_success">算法更新成功</string>
+    <string name="model_update_failed">算法更新失败</string>
+    <string name="model_detection_failed">检测失败: %s</string>
+    <string name="detecting">检测中...</string>
 </resources>

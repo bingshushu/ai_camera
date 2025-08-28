@@ -54,4 +54,17 @@
     <string name="screenshot_saved">Bildschirmfoto in Galerie gespeichert</string>
     <string name="create_image_file_failed">Bilddatei-Erstellung fehlgeschlagen</string>
     <string name="save_screenshot_failed">Bildschirmfoto-Speichern fehlgeschlagen: %s</string>
+    
+    <!-- Model Update -->
+    <string name="model_update_title">Algorithmus-Update</string>
+    <string name="model_update_message">Neue Algorithmus-Version gefunden. Jetzt aktualisieren?</string>
+    <string name="model_update_confirm">Bestätigen</string>
+    <string name="model_update_cancel">Abbrechen</string>
+    <string name="model_download_title">Algorithmus-Download</string>
+    <string name="model_downloading">Algorithmus wird aktualisiert, bitte warten...</string>
+    <string name="model_downloading_progress">Algorithmus wird aktualisiert... %d%%</string>
+    <string name="model_update_success">Algorithmus-Update erfolgreich</string>
+    <string name="model_update_failed">Algorithmus-Update fehlgeschlagen</string>
+    <string name="model_detection_failed">Erkennung fehlgeschlagen: %s</string>
+    <string name="detecting">Erkennung läuft...</string>
 </resources>

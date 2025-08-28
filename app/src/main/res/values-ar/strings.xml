@@ -54,4 +54,17 @@
     <string name="screenshot_saved">تم حفظ لقطة الشاشة في المعرض</string>
     <string name="create_image_file_failed">فشل في إنشاء ملف الصورة</string>
     <string name="save_screenshot_failed">فشل في حفظ لقطة الشاشة: %s</string>
+    
+    <!-- Model Update -->
+    <string name="model_update_title">تحديث الخوارزمية</string>
+    <string name="model_update_message">تم العثور على نسخة جديدة من الخوارزمية. تحديث الآن؟</string>
+    <string name="model_update_confirm">تأكيد</string>
+    <string name="model_update_cancel">إلغاء</string>
+    <string name="model_download_title">تنزيل الخوارزمية</string>
+    <string name="model_downloading">جاري تحديث الخوارزمية، يرجى الانتظار...</string>
+    <string name="model_downloading_progress">جاري تحديث الخوارزمية... %d%%</string>
+    <string name="model_update_success">تم تحديث الخوارزمية بنجاح</string>
+    <string name="model_update_failed">فشل في تحديث الخوارزمية</string>
+    <string name="model_detection_failed">فشل في الكشف: %s</string>
+    <string name="detecting">جاري الكشف...</string>
 </resources>
