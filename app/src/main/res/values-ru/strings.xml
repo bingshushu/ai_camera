@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">AICamera</string>
+    
+    <!-- Settings -->
+    <string name="settings">Настройки</string>
+    <string name="ai_circle_recognition">Распознавание Окружности ИИ</string>
+    <string name="ai_circle_recognition_description">Включить распознавание модели ИИ и маркировку центра окружности</string>
+    <string name="circle_center_style">Стиль Центра Окружности</string>
+    <string name="circle_center_style_description">Выбрать стиль отображения маркировки центра окружности</string>
+    <string name="language">Язык</string>
+    <string name="language_description">Выбрать язык интерфейса приложения</string>
+    
+    <!-- Circle center styles -->
+    <string name="style_dot">Точка</string>
+    <string name="style_small_cross">Маленький Крест ×</string>
+    <string name="style_large_cross">Большой Крест ×</string>
+    <string name="style_small_circle">Маленький Круг</string>
+    <string name="style_cross_with_circle">Крест × + Маленький Круг</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">Следовать Системе</string>
+    <string name="lang_chinese">简体中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_french">Français</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_portuguese">Português</string>
+    <string name="lang_italian">Italiano</string>
+    
+    <!-- Main UI -->
+    <string name="screenshot">Скриншот</string>
+    <string name="nozzle_confirm">Подтвердить Сопло</string>
+    <string name="red_light_align">Выровнять Красный Свет</string>
+    <string name="retry">Повторить</string>
+    <string name="connecting">Подключение...</string>
+    <string name="connected">Подключено</string>
+    <string name="disconnecting">Отключение...</string>
+    <string name="disconnected">Отключено</string>
+    <string name="playing">Воспроизведение</string>
+    <string name="auth_failed">Ошибка Аутентификации</string>
+    <string name="error">Ошибка</string>
+    <string name="retrying">Повторная Попытка...</string>
+</resources>

@@ -1,3 +1,45 @@
 <resources>
     <string name="app_name">AICamera</string>
+    
+    <!-- Settings -->
+    <string name="settings">设置</string>
+    <string name="ai_circle_recognition">AI圆心识别</string>
+    <string name="ai_circle_recognition_description">启用AI模型识别和圆心标注功能</string>
+    <string name="circle_center_style">圆心样式</string>
+    <string name="circle_center_style_description">选择圆心标注的显示样式</string>
+    <string name="language">语言</string>
+    <string name="language_description">选择应用界面语言</string>
+    
+    <!-- Circle center styles -->
+    <string name="style_dot">点</string>
+    <string name="style_small_cross">小十字×</string>
+    <string name="style_large_cross">大十字×</string>
+    <string name="style_small_circle">小圆</string>
+    <string name="style_cross_with_circle">十字×+小圆</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">跟随系统</string>
+    <string name="lang_chinese">简体中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_french">Français</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_portuguese">Português</string>
+    <string name="lang_italian">Italiano</string>
+    
+    <!-- Main UI -->
+    <string name="screenshot">截图</string>
+    <string name="nozzle_confirm">喷嘴确认</string>
+    <string name="red_light_align">红光对中</string>
+    <string name="retry">重试</string>
+    <string name="connecting">连接中...</string>
+    <string name="connected">已连接</string>
+    <string name="disconnecting">断开连接中...</string>
+    <string name="disconnected">已断开</string>
+    <string name="playing">播放中</string>
+    <string name="auth_failed">认证失败</string>
+    <string name="error">错误</string>
+    <string name="retrying">重试中...</string>
 </resources>

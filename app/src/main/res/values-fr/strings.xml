@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">AICamera</string>
+    
+    <!-- Settings -->
+    <string name="settings">Paramètres</string>
+    <string name="ai_circle_recognition">Reconnaissance de Cercle IA</string>
+    <string name="ai_circle_recognition_description">Activer la reconnaissance du modèle IA et le marquage du centre du cercle</string>
+    <string name="circle_center_style">Style du Centre du Cercle</string>
+    <string name="circle_center_style_description">Sélectionner le style d\'affichage du marquage du centre du cercle</string>
+    <string name="language">Langue</string>
+    <string name="language_description">Sélectionner la langue de l\'interface de l\'application</string>
+    
+    <!-- Circle center styles -->
+    <string name="style_dot">Point</string>
+    <string name="style_small_cross">Petite Croix ×</string>
+    <string name="style_large_cross">Grande Croix ×</string>
+    <string name="style_small_circle">Petit Cercle</string>
+    <string name="style_cross_with_circle">Croix × + Petit Cercle</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">Suivre le Système</string>
+    <string name="lang_chinese">简体中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_french">Français</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_portuguese">Português</string>
+    <string name="lang_italian">Italiano</string>
+    
+    <!-- Main UI -->
+    <string name="screenshot">Capture d\'Écran</string>
+    <string name="nozzle_confirm">Confirmer la Buse</string>
+    <string name="red_light_align">Aligner la Lumière Rouge</string>
+    <string name="retry">Réessayer</string>
+    <string name="connecting">Connexion...</string>
+    <string name="connected">Connecté</string>
+    <string name="disconnecting">Déconnexion...</string>
+    <string name="disconnected">Déconnecté</string>
+    <string name="playing">Lecture</string>
+    <string name="auth_failed">Authentification Échouée</string>
+    <string name="error">Erreur</string>
+    <string name="retrying">Nouvel Essai...</string>
+</resources>

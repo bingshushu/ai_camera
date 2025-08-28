@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">AICamera</string>
+    
+    <!-- Settings -->
+    <string name="settings">الإعدادات</string>
+    <string name="ai_circle_recognition">تمييز الدائرة بالذكاء الاصطناعي</string>
+    <string name="ai_circle_recognition_description">تمكين تمييز نموذج الذكاء الاصطناعي ووضع علامة على مركز الدائرة</string>
+    <string name="circle_center_style">نمط مركز الدائرة</string>
+    <string name="circle_center_style_description">اختيار نمط عرض علامة مركز الدائرة</string>
+    <string name="language">اللغة</string>
+    <string name="language_description">اختيار لغة واجهة التطبيق</string>
+    
+    <!-- Circle center styles -->
+    <string name="style_dot">نقطة</string>
+    <string name="style_small_cross">صليب صغير ×</string>
+    <string name="style_large_cross">صليب كبير ×</string>
+    <string name="style_small_circle">دائرة صغيرة</string>
+    <string name="style_cross_with_circle">صليب × + دائرة صغيرة</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">اتبع النظام</string>
+    <string name="lang_chinese">简体中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_french">Français</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_portuguese">Português</string>
+    <string name="lang_italian">Italiano</string>
+    
+    <!-- Main UI -->
+    <string name="screenshot">لقطة شاشة</string>
+    <string name="nozzle_confirm">تأكيد الفوهة</string>
+    <string name="red_light_align">محاذاة الضوء الأحمر</string>
+    <string name="retry">إعادة المحاولة</string>
+    <string name="connecting">جاري الاتصال...</string>
+    <string name="connected">متصل</string>
+    <string name="disconnecting">جاري قطع الاتصال...</string>
+    <string name="disconnected">غير متصل</string>
+    <string name="playing">قيد التشغيل</string>
+    <string name="auth_failed">فشل في المصادقة</string>
+    <string name="error">خطأ</string>
+    <string name="retrying">جاري إعادة المحاولة...</string>
+</resources>

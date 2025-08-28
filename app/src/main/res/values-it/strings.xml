@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">AICamera</string>
+    
+    <!-- Settings -->
+    <string name="settings">Impostazioni</string>
+    <string name="ai_circle_recognition">Riconoscimento Cerchio IA</string>
+    <string name="ai_circle_recognition_description">Attivare il riconoscimento del modello IA e la marcatura del centro del cerchio</string>
+    <string name="circle_center_style">Stile Centro Cerchio</string>
+    <string name="circle_center_style_description">Selezionare lo stile di visualizzazione della marcatura del centro del cerchio</string>
+    <string name="language">Lingua</string>
+    <string name="language_description">Selezionare la lingua dell\'interfaccia dell\'applicazione</string>
+    
+    <!-- Circle center styles -->
+    <string name="style_dot">Punto</string>
+    <string name="style_small_cross">Piccola Croce ×</string>
+    <string name="style_large_cross">Grande Croce ×</string>
+    <string name="style_small_circle">Piccolo Cerchio</string>
+    <string name="style_cross_with_circle">Croce × + Piccolo Cerchio</string>
+    
+    <!-- Languages -->
+    <string name="lang_system">Segui Sistema</string>
+    <string name="lang_chinese">简体中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_french">Français</string>
+    <string name="lang_arabic">العربية</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_portuguese">Português</string>
+    <string name="lang_italian">Italiano</string>
+    
+    <!-- Main UI -->
+    <string name="screenshot">Screenshot</string>
+    <string name="nozzle_confirm">Conferma Ugello</string>
+    <string name="red_light_align">Allinea Luce Rossa</string>
+    <string name="retry">Riprova</string>
+    <string name="connecting">Connessione...</string>
+    <string name="connected">Connesso</string>
+    <string name="disconnecting">Disconnessione...</string>
+    <string name="disconnected">Disconnesso</string>
+    <string name="playing">Riproduzione</string>
+    <string name="auth_failed">Autenticazione Fallita</string>
+    <string name="error">Errore</string>
+    <string name="retrying">Nuovo Tentativo...</string>
+</resources>
