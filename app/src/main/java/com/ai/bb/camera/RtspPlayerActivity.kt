@@ -380,35 +380,43 @@ class RtspPlayerActivity : AppCompatActivity() {
                             .pointerInput(showOverlayImage) {
                                 // 只在图片显示时启用手势
                                 if (showOverlayImage) {
-                                    detectTransformGestures { _, pan, zoom, _ ->
-                                        val minScale = baseScale
-                                        val maxScale = baseScale * 3f
-                                        val newScale =
-                                            (imageScale * zoom).coerceIn(minScale, maxScale)
-                                        imageScale = newScale
-
-                                        // 计算拖拽边界约束 - 限制图片离开屏幕边缘不超过1/3
-                                        val newOffset = imageOffset + pan
+                                    detectTransformGestures { centroid, pan, zoom, _ ->
                                         val containerW = rtspViewW.value.toFloat()
                                         val containerH = rtspViewH.value.toFloat()
-                                        val scaledImageW = overlaySize.width * imageScale
-                                        val scaledImageH = overlaySize.height * imageScale
-
-                                        // 计算允许移动的最大距离（图片尺寸的1/3）
-                                        val maxOffsetX = scaledImageW / 4f
-                                        val maxOffsetY = scaledImageH / 4f
-
-                                        // 计算边界
-                                        val leftBound = -maxOffsetX
-                                        val rightBound = containerW - scaledImageW + maxOffsetX
-                                        val topBound = -maxOffsetY
-                                        val bottomBound = containerH - scaledImageH + maxOffsetY
-
-                                        // 应用边界约束
-                                        imageOffset = Offset(
-                                            x = newOffset.x.coerceIn(leftBound, rightBound),
-                                            y = newOffset.y.coerceIn(topBound, bottomBound)
-                                        )
+                                        val minScale = baseScale
+                                        val maxScale = baseScale * 3f
+                                        val oldScale = imageScale
+                                        val newScale = (imageScale * zoom).coerceIn(minScale, maxScale)
+                                        
+                                        // 先处理拖拽
+                                        var newOffset = imageOffset + pan
+                                        
+                                        // 然后处理缩放，以触摸点为中心
+                                        if (newScale != oldScale && centroid != Offset.Unspecified) {
+                                            val scaledImageW = overlaySize.width * oldScale
+                                            val scaledImageH = overlaySize.height * oldScale
+                                            val oldCenterOffsetX = (containerW - scaledImageW) / 2f
+                                            val oldCenterOffsetY = (containerH - scaledImageH) / 2f
+                                            
+                                            // 计算触摸点在图像坐标系中的位置
+                                            val imageX = (centroid.x - oldCenterOffsetX - newOffset.x) / scaledImageW
+                                            val imageY = (centroid.y - oldCenterOffsetY - newOffset.y) / scaledImageH
+                                            
+                                            // 应用新的缩放
+                                            val newImageW = overlaySize.width * newScale
+                                            val newImageH = overlaySize.height * newScale
+                                            val newCenterOffsetX = (containerW - newImageW) / 2f
+                                            val newCenterOffsetY = (containerH - newImageH) / 2f
+                                            
+                                            // 调整偏移使触摸点保持不变
+                                            newOffset = Offset(
+                                                x = centroid.x - newCenterOffsetX - imageX * newImageW,
+                                                y = centroid.y - newCenterOffsetY - imageY * newImageH
+                                            )
+                                        }
+                                        
+                                        imageScale = newScale
+                                        imageOffset = newOffset
                                     }
                                 }
                             }
