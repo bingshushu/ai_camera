@@ -1,6 +1,10 @@
 package com.ai.bb.camera
 
 import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -71,6 +75,19 @@ class SettingsManager(private val context: Context) {
     fun updateLanguage(language: AppLanguage) {
         prefs.edit().putString("language", language.code).apply()
         _settings.value = _settings.value.copy(language = language)
+        
+        // Use modern AppCompatDelegate API for all Android versions
+        val localeList = when (language) {
+            AppLanguage.SYSTEM -> LocaleListCompat.getEmptyLocaleList()
+            else -> LocaleListCompat.forLanguageTags(language.code)
+        }
+        
+        // This works on all Android versions and automatically handles per-app preferences on Android 13+
+        AppCompatDelegate.setApplicationLocales(localeList)
+    }
+    
+    fun getCurrentLanguage(): AppLanguage {
+        return AppLanguage.values().find { it.code == prefs.getString("language", "system") } ?: AppLanguage.SYSTEM
     }
 }
 

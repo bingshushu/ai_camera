@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
@@ -122,8 +123,9 @@ fun SettingsScreen(
                         onLanguageSelected = { language ->
                             settingsManager.updateLanguage(language)
                             showLanguageDialog = false
-                            // Restart activity to apply language change
-                            if (context is Activity && language != AppLanguage.SYSTEM) {
+                            
+                            // 重启当前Activity以应用语言更改
+                            if (context is Activity) {
                                 context.recreate()
                             }
                         },
@@ -241,10 +243,12 @@ private fun LanguageDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.language)) },
         text = {
-            Column(
-                modifier = Modifier.selectableGroup()
+            LazyColumn(
+                modifier = Modifier
+                    .selectableGroup()
+                    .height(300.dp) // 限制对话框高度，使其可滚动
             ) {
-                AppLanguage.values().forEach { language ->
+                items(AppLanguage.values()) { language ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -290,16 +294,5 @@ private fun getStyleName(style: CircleCenterStyle): String {
 
 @Composable
 private fun getLanguageName(language: AppLanguage): String {
-    return when (language) {
-        AppLanguage.SYSTEM -> stringResource(R.string.lang_system)
-        AppLanguage.CHINESE -> stringResource(R.string.lang_chinese)
-        AppLanguage.ENGLISH -> stringResource(R.string.lang_english)
-        AppLanguage.SPANISH -> stringResource(R.string.lang_spanish)
-        AppLanguage.FRENCH -> stringResource(R.string.lang_french)
-        AppLanguage.ARABIC -> stringResource(R.string.lang_arabic)
-        AppLanguage.RUSSIAN -> stringResource(R.string.lang_russian)
-        AppLanguage.GERMAN -> stringResource(R.string.lang_german)
-        AppLanguage.PORTUGUESE -> stringResource(R.string.lang_portuguese)
-        AppLanguage.ITALIAN -> stringResource(R.string.lang_italian)
-    }
+    return LanguageManager.getDisplayLanguage(language)
 }

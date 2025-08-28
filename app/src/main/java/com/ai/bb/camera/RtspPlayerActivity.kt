@@ -2,9 +2,12 @@ package com.ai.bb.camera
 
 import android.annotation.SuppressLint
 import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -16,7 +19,7 @@ import android.util.Log
 import android.view.PixelCopy
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -64,12 +67,19 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 @SuppressLint("LogNotTimber")
-class RtspPlayerActivity : ComponentActivity() {
+class RtspPlayerActivity : AppCompatActivity() {
     
     private var rtspSurfaceView: RtspSurfaceView? = null
     private var isConnected = false
     private var detector: OnnxCircleDetector? = null
     private lateinit var settingsManager: SettingsManager
+    
+    override fun attachBaseContext(newBase: Context) {
+        val settingsManager = AICameraApplication.getSettingsManager(newBase)
+        val currentLanguage = settingsManager.getCurrentLanguage()
+        val updatedContext = LanguageManager.updateLanguage(newBase, currentLanguage)
+        super.attachBaseContext(updatedContext)
+    }
     
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -94,11 +104,11 @@ class RtspPlayerActivity : ComponentActivity() {
         // Set fullscreen and landscape mode
         setupFullscreenLandscape()
         detector = OnnxCircleDetector(this)
-        settingsManager = SettingsManager(this)
+        settingsManager = AICameraApplication.getSettingsManager(this)
         
         setContent {
             AICameraTheme {
-                MainAppScreen()
+                RtspPlayerScreen()
             }
         }
     }
@@ -122,23 +132,7 @@ class RtspPlayerActivity : ComponentActivity() {
     }
     
     @Composable
-    fun MainAppScreen() {
-        var showSettings by remember { mutableStateOf(false) }
-        
-        if (showSettings) {
-            SettingsScreen(
-                settingsManager = settingsManager,
-                onNavigateBack = { showSettings = false }
-            )
-        } else {
-            RtspPlayerScreen(
-                onOpenSettings = { showSettings = true }
-            )
-        }
-    }
-    
-    @Composable
-    fun RtspPlayerScreen(onOpenSettings: () -> Unit) {
+    fun RtspPlayerScreen() {
         var isLoading by remember { mutableStateOf(false) }
         val context = LocalContext.current
         var statusText by remember { mutableStateOf(context.getString(R.string.disconnected)) }
@@ -445,7 +439,10 @@ class RtspPlayerActivity : ComponentActivity() {
             
             // 设置按钮 - 右上角蓝色
             FloatingActionButton(
-                onClick = onOpenSettings,
+                onClick = {
+                    val intent = Intent(context, SettingsActivity::class.java)
+                    startActivity(intent)
+                },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(16.dp),
@@ -486,10 +483,14 @@ class RtspPlayerActivity : ComponentActivity() {
                     onClick = {
                         if (!isNozzleConfirmed) {
                             // 第一次点击：执行圆形检测并设置确认状态
-                            captureFrameBitmap { bmp ->
-                                if (bmp != null) {
-                                    overlayBitmap = bmp.asImageBitmap()
-                                    showOverlayImage = true // 显示截取的图片
+                            
+                            // Debug模式下使用test.jpg，否则截取当前画面
+                            if (BuildConfig.DEBUG) {
+                                Log.i(TAG, "Debug模式：使用test.jpg进行圆形检测")
+                                val testBitmap = loadTestImageFromAssets()
+                                if (testBitmap != null) {
+                                    overlayBitmap = testBitmap.asImageBitmap()
+                                    showOverlayImage = true // 显示测试图片
 
                                     // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
                                     imageScale = baseScale
@@ -499,7 +500,7 @@ class RtspPlayerActivity : ComponentActivity() {
                                     if (settings.aiCircleRecognitionEnabled) {
                                         // Run model to detect circles
                                         Log.i(TAG, "开始运行圆形检测...")
-                                        val list = detector?.detect(bmp) ?: emptyList()
+                                        val list = detector?.detect(testBitmap) ?: emptyList()
                                         circles = list
                                         Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
                                         list.forEach { circle ->
@@ -513,7 +514,39 @@ class RtspPlayerActivity : ComponentActivity() {
                                     // 设置确认状态
                                     isNozzleConfirmed = true
                                 } else {
-                                    Toast.makeText(context, "覆盖截图失败", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "加载测试图片失败", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                // 生产模式：截取当前画面
+                                captureFrameBitmap { bmp ->
+                                    if (bmp != null) {
+                                        overlayBitmap = bmp.asImageBitmap()
+                                        showOverlayImage = true // 显示截取的图片
+
+                                        // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
+                                        imageScale = baseScale
+                                        imageOffset = Offset.Zero
+
+                                        // 只有在AI识别开启时才运行模型
+                                        if (settings.aiCircleRecognitionEnabled) {
+                                            // Run model to detect circles
+                                            Log.i(TAG, "开始运行圆形检测...")
+                                            val list = detector?.detect(bmp) ?: emptyList()
+                                            circles = list
+                                            Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
+                                            list.forEach { circle ->
+                                                Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                            }
+                                        } else {
+                                            circles = emptyList()
+                                            Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
+                                        }
+                                        
+                                        // 设置确认状态
+                                        isNozzleConfirmed = true
+                                    } else {
+                                        Toast.makeText(context, "覆盖截图失败", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
                         } else {
@@ -598,6 +631,16 @@ class RtspPlayerActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+    
+    private fun loadTestImageFromAssets(): Bitmap? {
+        return try {
+            val inputStream = assets.open("test.jpg")
+            BitmapFactory.decodeStream(inputStream)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load test image from assets", e)
+            null
         }
     }
     

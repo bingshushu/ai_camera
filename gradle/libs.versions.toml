@@ -9,11 +9,13 @@ lifecycleRuntimeKtx = "2.9.3"
 lifecycleRuntimeCompose = "2.9.3"
 activityCompose = "1.10.1"
 composeBom = "2025.08.01"
+appcompat = "1.7.1"
 rtsp-client-android = "5.3.7"
 onnxruntime-android = "1.22.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
