@@ -159,6 +159,9 @@ class RtspPlayerActivity : AppCompatActivity() {
         // 画面异常状态
         var hasStreamIssue by remember { mutableStateOf(false) }
 
+        // 按钮状态
+        var isRedLightAligned by remember { mutableStateOf(false) } // 红光对中状态
+
         // UI状态管理
         val hasOverlayImage = overlayBitmap != null
         val showDetectionButton = !hasOverlayImage || !showOverlayImage
@@ -484,7 +487,9 @@ class RtspPlayerActivity : AppCompatActivity() {
                 text = stringResource(R.string.settings),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(16.dp),
+                    .padding(0.dp)
+                    .height(48.dp)
+                    .width(120.dp),
                 containerColor = Color(0xFF2196F3)
             )
 
@@ -495,7 +500,9 @@ class RtspPlayerActivity : AppCompatActivity() {
                 text = stringResource(R.string.screenshot),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(24.dp),
+                    .padding(0.dp)
+                    .height(48.dp)
+                    .width(120.dp),
                 containerColor = MaterialTheme.colorScheme.primary
             )
 
@@ -503,10 +510,10 @@ class RtspPlayerActivity : AppCompatActivity() {
             Column(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 24.dp),
+                    .padding(end = 0.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 喷嘴确认按钮 - 黄色，选中时橙色
+                // 喷嘴确认按钮 - 默认高级灰色，点击后绿色
                 SmartActionButton(
                     onClick = {
                         if (!isNozzleConfirmed) {
@@ -596,23 +603,26 @@ class RtspPlayerActivity : AppCompatActivity() {
                             overlayBitmap = null
                             circles = emptyList()
                             isNozzleConfirmed = false
+                            isRedLightAligned = false // 重置红光对中状态
                         }
                     },
                     text = stringResource(R.string.nozzle_confirm),
-                    containerColor = if (isNozzleConfirmed) Color(0xFFFF9800) else Color(0xFFFFEB3B),
-                    contentColor = Color.Black
+                    modifier = Modifier.width(120.dp),
+                    containerColor = if (isNozzleConfirmed) Color(0xFF4CAF50) else Color(0xFF6C6C6C), // 绿色或高级灰色
+                    contentColor = Color.White
                 )
 
-                // 红光对中按钮 - 红色，隐藏时占位
-                if (showHideImageButton) {
-                    SmartActionButton(
-                        onClick = {
+                // 红光对中按钮 - 默认高级灰色，点击后红色，一直显示
+                SmartActionButton(
+                    onClick = {
+                        if (showOverlayImage) {
                             // 将图片的缩放和位置应用到RTSP视频播放器
                             rtspScale = imageScale
                             rtspOffset = imageOffset
 
                             // 隐藏图片但保留圆形绘制
                             showOverlayImage = false
+                            isRedLightAligned = true
 
                             Log.i(
                                 TAG,
@@ -623,20 +633,13 @@ class RtspPlayerActivity : AppCompatActivity() {
                                     )
                                 }, 偏移: (${rtspOffset.x.toInt()}, ${rtspOffset.y.toInt()})"
                             )
-                        },
-                        text = stringResource(R.string.red_light_align),
-                        containerColor = Color(0xFFF44336),
-                        contentColor = Color.White
-                    )
-                } else {
-                    // 占位按钮，保持布局一致
-                    SmartActionButton(
-                        onClick = {},
-                        text = "",
-                        containerColor = Color.Transparent,
-                        modifier = Modifier.alpha(0f)
-                    )
-                }
+                        }
+                    },
+                    text = stringResource(R.string.red_light_align),
+                    modifier = Modifier.width(120.dp),
+                    containerColor = if (isRedLightAligned) Color(0xFFF44336) else Color(0xFF6C6C6C), // 红色或高级灰色
+                    contentColor = Color.White
+                )
             }
 
 
@@ -673,7 +676,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                     text = stringResource(R.string.retry),
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(16.dp),
+                        .padding(0.dp),
                     containerColor = Color(0xFF4CAF50)
                 )
             }
@@ -875,8 +878,6 @@ class RtspPlayerActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         rtspSurfaceView?.takeIf { !it.isStarted() }?.let {
-            val uri = Uri.parse(DEFAULT_RTSP_URL)
-            it.init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-RTSP-Client")
             it.start(requestVideo = true, requestAudio = true, requestApplication = false)
         }
     }

@@ -133,7 +133,7 @@ fun SmartActionButton(
                 onClick = onClick,
                 modifier = modifier
                     .widthIn(min = 96.dp, max = 128.dp)
-                    .height(56.dp),
+                    .height(48.dp),
                 containerColor = containerColor,
                 shape = RoundedCornerShape(16.dp)
             ) {
