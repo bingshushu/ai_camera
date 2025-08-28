@@ -40,7 +40,7 @@
     <string name="disconnected">Déconnecté</string>
     <string name="playing">Lecture</string>
     <string name="auth_failed">Authentification Échouée</string>
-    <string name="error">Erreur</string>
+    <string name="error">Non connecté, vérifiez WiFi et reconnectez</string>
     <string name="retrying">Nouvel Essai...</string>
     
     <!-- Toast Messages -->

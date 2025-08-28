@@ -113,14 +113,14 @@ fun DrawScope.drawCircleCenterStyle(
     circleRadius: Float? = null,
     isPreview: Boolean = false
 ) {
-    val strokeWidth = 2f / scale
-    val baseSize = 8f / scale
+    val strokeWidth = if (isPreview) 2f else 2f * scale
+    val baseSize = if (isPreview) 8f else 8f * scale
     
     when (style) {
         CircleCenterStyle.DOT -> {
             drawCircle(
                 color = color,
-                radius = 3f / scale,
+                radius = if (isPreview) 3f else 3f * scale,
                 center = center
             )
         }
@@ -171,7 +171,7 @@ fun DrawScope.drawCircleCenterStyle(
         }
         
         CircleCenterStyle.CROSS_WITH_CIRCLE -> {
-            val innerCircleRadius = if (isPreview) baseSize * 1.2f else baseSize * 1.2f * 1.5f
+            val innerCircleRadius = if (isPreview) baseSize * 1.2f else baseSize * 1.2f
             val crossExtension = circleRadius ?: (baseSize * 2f)
             
             // 绘制十字 - 延伸到外圆的边缘
@@ -208,7 +208,7 @@ fun DrawScope.drawCircleCenterStyle(
                 color = color,
                 radius = innerCircleRadius,
                 center = center,
-                style = Stroke(width = strokeWidth * 1.5f)
+                style = Stroke(width = strokeWidth * 1.2f)
             )
         }
     }

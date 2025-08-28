@@ -40,6 +40,18 @@
     <string name="disconnected">Disconnesso</string>
     <string name="playing">Riproduzione</string>
     <string name="auth_failed">Autenticazione Fallita</string>
-    <string name="error">Errore</string>
+    <string name="error">Non connesso, controlla WiFi e riconnetti</string>
     <string name="retrying">Nuovo Tentativo...</string>
+    
+    <!-- Toast Messages -->
+    <string name="permission_storage_required">Permesso di archiviazione richiesto per salvare gli screenshot</string>
+    <string name="test_image_load_failed">Caricamento immagine di test fallito</string>
+    <string name="capture_failed">Cattura fallita</string>
+    <string name="rtsp_not_connected">RTSP non connesso</string>
+    <string name="screenshot_failed">Screenshot fallito</string>
+    <string name="screenshot_error">Errore screenshot: %s</string>
+    <string name="surface_not_available">Superficie non disponibile</string>
+    <string name="screenshot_saved">Screenshot salvato nella galleria</string>
+    <string name="create_image_file_failed">Creazione file immagine fallita</string>
+    <string name="save_screenshot_failed">Salvataggio screenshot fallito: %s</string>
 </resources>

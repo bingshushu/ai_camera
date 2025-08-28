@@ -213,7 +213,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                             override fun onRtspStatusFailed(message: String?) {
                                 Log.e(TAG, "RTSP Failed: $message")
                                 isLoading = false
-                                statusText = "${context.getString(R.string.error)}: $message"
+                                statusText = "${context.getString(R.string.error)}"
                                 isConnected = false
                                 hasStreamIssue = true
                             }
@@ -513,38 +513,38 @@ class RtspPlayerActivity : AppCompatActivity() {
                             // 第一次点击：执行圆形检测并设置确认状态
 
                             // Debug模式下使用test.jpg，否则截取当前画面
-//                            if (BuildConfig.DEBUG) {
-//                                Log.i(TAG, "Debug模式：使用test.jpg进行圆形检测")
-//                                val testBitmap = loadTestImageFromAssets()
-//                                if (testBitmap != null) {
-//                                    overlayBitmap = testBitmap.asImageBitmap()
-//                                    showOverlayImage = true // 显示测试图片
-//
-//                                    // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
-//                                    imageScale = baseScale
-//                                    imageOffset = Offset.Zero
-//
-//                                    // 只有在AI识别开启时才运行模型
-//                                    if (settings.aiCircleRecognitionEnabled) {
-//                                        // Run model to detect circles
-//                                        Log.i(TAG, "开始运行圆形检测...")
-//                                        val list = detector?.detect(testBitmap) ?: emptyList()
-//                                        circles = list
-//                                        Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
-//                                        list.forEach { circle ->
-//                                            Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
-//                                        }
-//                                    } else {
-//                                        circles = emptyList()
-//                                        Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
-//                                    }
-//
-//                                    // 设置确认状态
-//                                    isNozzleConfirmed = true
-//                                } else {
-//                                    Toast.makeText(context, getString(R.string.test_image_load_failed), Toast.LENGTH_SHORT).show()
-//                                }
-//                            } else {
+                            if (BuildConfig.DEBUG) {
+                                Log.i(TAG, "Debug模式：使用test.jpg进行圆形检测")
+                                val testBitmap = loadTestImageFromAssets()
+                                if (testBitmap != null) {
+                                    overlayBitmap = testBitmap.asImageBitmap()
+                                    showOverlayImage = true // 显示测试图片
+
+                                    // 重置缩放和偏移，确保图片以适配16:9区域的尺寸显示
+                                    imageScale = baseScale
+                                    imageOffset = Offset.Zero
+
+                                    // 只有在AI识别开启时才运行模型
+                                    if (settings.aiCircleRecognitionEnabled) {
+                                        // Run model to detect circles
+                                        Log.i(TAG, "开始运行圆形检测...")
+                                        val list = detector?.detect(testBitmap) ?: emptyList()
+                                        circles = list
+                                        Log.i(TAG, "检测完成，找到 ${list.size} 个圆形目标")
+                                        list.forEach { circle ->
+                                            Log.i(TAG, "检测结果: ${circle.className} - 中心(${circle.cx.toInt()}, ${circle.cy.toInt()}) 半径=${circle.r.toInt()} 置信度=${String.format("%.3f", circle.confidence)}")
+                                        }
+                                    } else {
+                                        circles = emptyList()
+                                        Log.i(TAG, "AI圆心识别已关闭，跳过模型检测")
+                                    }
+
+                                    // 设置确认状态
+                                    isNozzleConfirmed = true
+                                } else {
+                                    Toast.makeText(context, getString(R.string.test_image_load_failed), Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
                             // 生产模式：截取当前画面
                             captureFrameBitmap { bmp ->
                                 if (bmp != null) {
@@ -585,7 +585,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                                         .show()
                                 }
                             }
-//                            }
+                            }
                         } else {
                             // 第二次点击：还原所有设置
                             imageScale = 1f
