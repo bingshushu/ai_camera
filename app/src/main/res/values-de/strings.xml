@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AICamera</string>
+    <string name="app_name">AI VAS</string>
     
     <!-- Settings -->
     <string name="settings">Einstellungen</string>
@@ -38,7 +38,7 @@
     <string name="connected">Verbunden</string>
     <string name="disconnecting">Trenne...</string>
     <string name="disconnected">Getrennt</string>
-    <string name="playing">Wiedergabe</string>
+    <string name="playing">Läuft</string>
     <string name="auth_failed">Authentifizierung Fehlgeschlagen</string>
     <string name="error">Nicht verbunden, WiFi prüfen und neu verbinden</string>
     <string name="retrying">Erneuter Versuch...</string>

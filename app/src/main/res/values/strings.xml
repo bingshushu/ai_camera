@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">AICamera</string>
+    <string name="app_name">AI VAS</string>
     
     <!-- Settings -->
     <string name="settings">设置</string>
@@ -38,7 +38,7 @@
     <string name="connected">已连接</string>
     <string name="disconnecting">断开连接中...</string>
     <string name="disconnected">已断开</string>
-    <string name="playing">播放中</string>
+    <string name="playing">运行中</string>
     <string name="auth_failed">认证失败</string>
     <string name="error">未连接，请检查wifi后重新连接</string>
     <string name="retrying">重试中...</string>
