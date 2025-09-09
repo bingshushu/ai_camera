@@ -104,7 +104,7 @@ class RtspPlayerActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "RtspPlayerActivity"
-        private const val DEFAULT_RTSP_URL = "rtsp://192.168.1.88/11"
+        private const val DEFAULT_RTSP_URL = "rtsp://192.168.1.87/11"
         private const val DEFAULT_USERNAME = "admin"
         private const val DEFAULT_PASSWORD = "admin"
     }

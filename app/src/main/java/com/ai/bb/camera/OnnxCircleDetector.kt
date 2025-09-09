@@ -341,6 +341,11 @@ class OnnxCircleDetector(context: Context, private val modelUpdateManager: Model
                     width = data[2 * actualAnchors + i]
                     height = data[3 * actualAnchors + i]
                 }
+
+                // 添加这个调试 - 显示前5个样本的bbox
+                if (i < 5) {
+                    Log.i("OnnxCircleDetector", "Sample $i bbox: center(${xCenter}, ${yCenter}) size(${width}x${height})")
+                }
                 
                 // 计算类别分数 - 动态确定实际类别数
                 var maxScore = -1f
@@ -359,6 +364,10 @@ class OnnxCircleDetector(context: Context, private val modelUpdateManager: Model
                             Log.w("OnnxCircleDetector", "跳过越界访问: index=$index, dataSize=${data.size}")
                             continue
                         }
+                    }
+                    // 添加这个调试日志
+                    if (i < 5 && c == 0) {
+                        Log.i("OnnxCircleDetector", "Sample $i Class $c: raw score=$score (threshold=$confThreshold)")
                     }
                     if (score > maxScore) {
                         maxScore = score
