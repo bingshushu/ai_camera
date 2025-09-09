@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -113,102 +114,133 @@ fun DrawScope.drawCircleCenterStyle(
     circleRadius: Float? = null,
     isPreview: Boolean = false
 ) {
-    val strokeWidth = if (isPreview) 2f else 2f * scale
-    val baseSize = if (isPreview) 8f else 8f * scale
-    
+    val centerLineWidth = if (isPreview) 1.0f else maxOf(1.0f, (circleRadius ?: 50f) * 0.025f * scale)
+    val dashPattern = floatArrayOf(1.0f, 5.0f) // 3pt实线，2pt空白
     when (style) {
         CircleCenterStyle.DOT -> {
+            // iOS对齐：半径的4%，最小2pt
+            val dotRadius = if (isPreview) 2.0f else maxOf(2.0f, (circleRadius ?: 50f) * 0.04f * scale)
             drawCircle(
                 color = color,
-                radius = if (isPreview) 3f else 3f * scale,
+                radius = dotRadius,
                 center = center
             )
         }
         
         CircleCenterStyle.SMALL_CROSS -> {
-            val crossSize = if (isPreview) baseSize else baseSize * 3f
+            // iOS对齐：半径的40%，最小6pt
+            val crossSize = if (isPreview) 6.0f else maxOf(6.0f, (circleRadius ?: 50f) * 0.4f * scale)
+            // 设置虚线效果
+            val pathEffect = PathEffect.dashPathEffect(dashPattern, 0f)
+            
             // 水平线
             drawLine(
                 color = color,
                 start = Offset(center.x - crossSize, center.y),
                 end = Offset(center.x + crossSize, center.y),
-                strokeWidth = strokeWidth
+                strokeWidth = centerLineWidth,
+                pathEffect = pathEffect
             )
             // 垂直线
             drawLine(
                 color = color,
                 start = Offset(center.x, center.y - crossSize),
                 end = Offset(center.x, center.y + crossSize),
-                strokeWidth = strokeWidth
+                strokeWidth = centerLineWidth,
+                pathEffect = pathEffect
             )
         }
         
         CircleCenterStyle.LARGE_CROSS -> {
-            val crossRadius = circleRadius ?: (baseSize * 2f)
+            // iOS对齐：十字延伸到圆的边缘（radius的100%）
+            val crossSize = circleRadius ?: (if (isPreview) 20f else 20f * scale)
+            // 设置虚线效果
+            val pathEffect = PathEffect.dashPathEffect(dashPattern, 0f)
+            
             // 水平线 - 延伸到圆的边缘
             drawLine(
                 color = color,
-                start = Offset(center.x - crossRadius, center.y),
-                end = Offset(center.x + crossRadius, center.y),
-                strokeWidth = strokeWidth
+                start = Offset(center.x - crossSize, center.y),
+                end = Offset(center.x + crossSize, center.y),
+                strokeWidth = centerLineWidth,
+                pathEffect = pathEffect
             )
             // 垂直线 - 延伸到圆的边缘
             drawLine(
                 color = color,
-                start = Offset(center.x, center.y - crossRadius),
-                end = Offset(center.x, center.y + crossRadius),
-                strokeWidth = strokeWidth
+                start = Offset(center.x, center.y - crossSize),
+                end = Offset(center.x, center.y + crossSize),
+                strokeWidth = centerLineWidth,
+                pathEffect = pathEffect
             )
         }
         
         CircleCenterStyle.SMALL_CIRCLE -> {
+            // iOS对齐：半径的12%，最小4pt
+            val innerRadius = if (isPreview) 4.0f else maxOf(4.0f, (circleRadius ?: 50f) * 0.12f * scale)
+            // iOS对齐：小圆线宽为小圆半径的20%，最小1.0pt
+            val smallCircleLineWidth = if (isPreview) 1.0f else maxOf(1.0f, innerRadius * 0.2f)
+            // 设置虚线效果
+            val pathEffect = PathEffect.dashPathEffect(dashPattern, 0f)
+            
             drawCircle(
                 color = color,
-                radius = baseSize,
+                radius = innerRadius,
                 center = center,
-                style = Stroke(width = strokeWidth)
+                style = Stroke(width = smallCircleLineWidth, pathEffect = pathEffect)
             )
         }
         
         CircleCenterStyle.CROSS_WITH_CIRCLE -> {
-            val innerCircleRadius = if (isPreview) baseSize * 1.2f else baseSize * 1.2f
-            val crossExtension = circleRadius ?: (baseSize * 2f)
+            // iOS对齐：内圆半径的15%，最小6pt
+            val innerRadius = if (isPreview) 6.0f else maxOf(6.0f, (circleRadius ?: 50f) * 0.15f * scale)
+            val crossSize = circleRadius ?: (if (isPreview) 20f else 20f * scale)
             
-            // 绘制十字 - 延伸到外圆的边缘
-            val crossStrokeWidth = strokeWidth
-            // 水平线 - 从左边延伸到圆边，从圆边延伸到右边
+            // 设置虚线效果
+
+            val pathEffect = PathEffect.dashPathEffect(dashPattern, 0f)
+            
+            // 绘制中断的十字线（不穿过小圆）
+            // 水平线 - 左侧
             drawLine(
                 color = color,
-                start = Offset(center.x - crossExtension, center.y),
-                end = Offset(center.x - innerCircleRadius, center.y),
-                strokeWidth = crossStrokeWidth
+                start = Offset(center.x - crossSize, center.y),
+                end = Offset(center.x - innerRadius, center.y),
+                strokeWidth = centerLineWidth,
+                pathEffect = pathEffect
             )
+            // 水平线 - 右侧  
             drawLine(
                 color = color,
-                start = Offset(center.x + innerCircleRadius, center.y),
-                end = Offset(center.x + crossExtension, center.y),
-                strokeWidth = crossStrokeWidth
+                start = Offset(center.x + innerRadius, center.y),
+                end = Offset(center.x + crossSize, center.y),
+                strokeWidth = centerLineWidth,
+                pathEffect = pathEffect
             )
-            // 垂直线 - 从上边延伸到圆边，从圆边延伸到下边
+            // 垂直线 - 上侧
             drawLine(
                 color = color,
-                start = Offset(center.x, center.y - crossExtension),
-                end = Offset(center.x, center.y - innerCircleRadius),
-                strokeWidth = crossStrokeWidth
+                start = Offset(center.x, center.y - crossSize),
+                end = Offset(center.x, center.y - innerRadius),
+                strokeWidth = centerLineWidth,
+                pathEffect = pathEffect
             )
+            // 垂直线 - 下侧
             drawLine(
                 color = color,
-                start = Offset(center.x, center.y + innerCircleRadius),
-                end = Offset(center.x, center.y + crossExtension),
-                strokeWidth = crossStrokeWidth
+                start = Offset(center.x, center.y + innerRadius),
+                end = Offset(center.x, center.y + crossSize),
+                strokeWidth = centerLineWidth,
+                pathEffect = pathEffect
             )
             
-            // 中间的圆
+            // 绘制小圆 - iOS对齐：小圆线宽为内圆半径的30%，最小1.0pt
+            val innerCircleLineWidth = if (isPreview) 1.0f else maxOf(1.0f, innerRadius * 0.3f)
             drawCircle(
                 color = color,
-                radius = innerCircleRadius,
+                radius = innerRadius,
                 center = center,
-                style = Stroke(width = strokeWidth * 1.2f)
+                style = Stroke(width = innerCircleLineWidth, pathEffect = pathEffect)
             )
         }
     }
