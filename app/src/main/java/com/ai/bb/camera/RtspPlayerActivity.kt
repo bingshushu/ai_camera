@@ -50,7 +50,10 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import com.ai.bb.camera.ui.components.SmartActionButton
+import com.ai.bb.camera.ui.components.DeviceConnectionOverlay
+import com.ai.bb.camera.ui.components.ConnectionStatus
 import com.alexvas.rtsp.widget.RtspDataListener
 import com.alexvas.rtsp.widget.RtspStatusListener
 import com.alexvas.rtsp.widget.RtspSurfaceView
@@ -80,6 +83,7 @@ class RtspPlayerActivity : AppCompatActivity() {
     private lateinit var settingsManager: SettingsManager
     private lateinit var modelUpdateManager: ModelUpdateManager
     private var windowInsetsController: WindowInsetsControllerCompat? = null
+    private lateinit var wifiConnectionManager: WifiConnectionManager
 
     override fun attachBaseContext(newBase: Context) {
         val settingsManager = AICameraApplication.getSettingsManager(newBase)
@@ -117,6 +121,7 @@ class RtspPlayerActivity : AppCompatActivity() {
         modelUpdateManager = ModelUpdateManager(this)
         detector = OnnxCircleDetector(this, modelUpdateManager)
         settingsManager = AICameraApplication.getSettingsManager(this)
+        wifiConnectionManager = WifiConnectionManager(this)
 
         setContent {
             AICameraTheme {
@@ -202,6 +207,131 @@ class RtspPlayerActivity : AppCompatActivity() {
         var isRedLightAligned by remember { mutableStateOf(false) } // 红光对中状态
         var isDetecting by remember { mutableStateOf(false) } // 模型检测进行中状态
 
+        // 设备连接状态
+        var showConnectionOverlay by remember { mutableStateOf(false) }
+        var connectionStatus by remember { mutableStateOf(ConnectionStatus.NOT_STARTED) }
+        var hasTriedRtspConnection by remember { mutableStateOf(false) }
+        var userDismissedOverlay by remember { mutableStateOf(false) } // 用户是否手动关闭了覆盖层
+
+        // 检查是否需要显示Wi-Fi引导
+        fun checkAndShowWifiGuide() {
+            if (!isConnected && hasTriedRtspConnection && !userDismissedOverlay) {
+                // RTSP连不通，且用户未手动关闭，显示引导画面
+                showConnectionOverlay = true
+            }
+        }
+
+        // 自动重试RTSP连接
+        fun retryRtspConnection() {
+            Log.i(TAG, "自动重试连接RTSP流")
+            hasStreamIssue = false
+            isLoading = true
+            statusText = context.getString(R.string.retrying)
+
+            // 停止当前连接并重新开始
+            rtspSurfaceView?.let { surfaceView ->
+                if (surfaceView.isStarted()) {
+                    surfaceView.stop()
+                }
+
+                // 重新初始化连接
+                val uri = Uri.parse(DEFAULT_RTSP_URL)
+                surfaceView.init(
+                    uri,
+                    DEFAULT_USERNAME,
+                    DEFAULT_PASSWORD,
+                    "AICamera-RTSP-Client"
+                )
+                surfaceView.start(
+                    requestVideo = true,
+                    requestAudio = true,
+                    requestApplication = false
+                )
+            }
+        }
+
+        // 启动时等待RTSP连接，如果超时则显示引导
+        LaunchedEffect(Unit) {
+            delay(5000) // 等待5秒
+            if (!hasTriedRtspConnection) {
+                // RTSP连接超时，标记已尝试并检查是否显示引导
+                hasTriedRtspConnection = true
+                checkAndShowWifiGuide()
+            }
+        }
+
+        // 设备连接处理函数
+        fun handleDeviceConnection() {
+            lifecycleScope.launch {
+                try {
+                    // 1. 检查Wi-Fi是否已连接
+                    connectionStatus = ConnectionStatus.CHECKING_WIFI
+                    delay(500)
+
+                    if (!wifiConnectionManager.isConnectedToWifi()) {
+                        connectionStatus = ConnectionStatus.WIFI_NOT_CONNECTED
+                        return@launch
+                    }
+
+                    // 2. 检查Wi-Fi SSID是否匹配
+                    if (!wifiConnectionManager.isCurrentSsidMatchIPCAM()) {
+                        connectionStatus = ConnectionStatus.WIFI_MISMATCH
+                        delay(500)
+
+                        // 3. 扫描Wi-Fi
+                        connectionStatus = ConnectionStatus.SCANNING_WIFI
+                        wifiConnectionManager.scanForIPCAMNetwork { ssid ->
+                            if (ssid != null) {
+                                // 4. 找到匹配的Wi-Fi，尝试连接
+                                connectionStatus = ConnectionStatus.CONNECTING_WIFI
+                                wifiConnectionManager.connectToNetwork(ssid) { success ->
+                                    if (success) {
+                                        // 连接成功，重新尝试RTSP
+                                        connectionStatus = ConnectionStatus.CONNECTED
+                                        lifecycleScope.launch {
+                                            delay(2000) // 等待Wi-Fi稳定
+                                            // 重启RTSP连接
+                                            rtspSurfaceView?.let { surfaceView ->
+                                                if (surfaceView.isStarted()) {
+                                                    surfaceView.stop()
+                                                }
+                                                val uri = Uri.parse(DEFAULT_RTSP_URL)
+                                                surfaceView.init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-RTSP-Client")
+                                                surfaceView.start(requestVideo = true, requestAudio = true, requestApplication = false)
+                                            }
+                                        }
+                                    } else {
+                                        connectionStatus = ConnectionStatus.WIFI_CONNECTION_FAILED
+                                    }
+                                }
+                            } else {
+                                // 5. 未找到匹配的Wi-Fi，提示打开设置
+                                connectionStatus = ConnectionStatus.ASK_OPEN_SETTINGS
+                            }
+                        }
+                    } else {
+                        // Wi-Fi已匹配，重新尝试RTSP
+                        connectionStatus = ConnectionStatus.CONNECTED
+                        lifecycleScope.launch {
+                            delay(1000)
+                            // 重启RTSP连接
+                            rtspSurfaceView?.let { surfaceView ->
+                                if (surfaceView.isStarted()) {
+                                    surfaceView.stop()
+                                }
+                                val uri = Uri.parse(DEFAULT_RTSP_URL)
+                                surfaceView.init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-RTSP-Client")
+                                surfaceView.start(requestVideo = true, requestAudio = true, requestApplication = false)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "设备连接过程出错", e)
+                    connectionStatus = ConnectionStatus.WIFI_NOT_CONNECTED
+                }
+            }
+        }
+
         // UI状态管理
         val hasOverlayImage = overlayBitmap != null
         val showDetectionButton = !hasOverlayImage || !showOverlayImage
@@ -231,6 +361,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 statusText = context.getString(R.string.connected)
                                 isConnected = true
                                 hasStreamIssue = false
+                                hasTriedRtspConnection = true
                             }
 
                             override fun onRtspStatusDisconnecting() {
@@ -251,6 +382,11 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 statusText = context.getString(R.string.auth_failed)
                                 isConnected = false
                                 hasStreamIssue = true
+                                hasTriedRtspConnection = true
+                                checkAndShowWifiGuide()
+                                
+                                // 自动重试连接
+                                retryRtspConnection()
                             }
 
                             override fun onRtspStatusFailed(message: String?) {
@@ -259,6 +395,11 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 statusText = "${context.getString(R.string.error)}"
                                 isConnected = false
                                 hasStreamIssue = true
+                                hasTriedRtspConnection = true
+                                checkAndShowWifiGuide()
+                                
+                                // 自动重试连接
+                                retryRtspConnection()
                             }
 
                             override fun onRtspFirstFrameRendered() {
@@ -721,41 +862,33 @@ class RtspPlayerActivity : AppCompatActivity() {
             }
 
 
-            // 重试按钮 - 当画面异常时显示，左上角绿色
-            if (hasStreamIssue) {
-                SmartActionButton(
-                    onClick = {
-                        Log.i(TAG, "重试连接RTSP流")
-                        hasStreamIssue = false
-                        isLoading = true
-                        statusText = context.getString(R.string.retrying)
+            // 激光零焦按钮 - 左侧垂直居中
+            SmartActionButton(
+                onClick = {
+                    val intent = Intent(context, LaserZeroFocusActivity::class.java)
+                    startActivity(intent)
+                },
+                text = stringResource(R.string.laser_zero_focus),
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 0.dp)
+                    .width(120.dp)
+                    .height(48.dp),
+                containerColor = Color(0xFF9C27B0) // 紫色
+            )
 
-                        // 停止当前连接并重新开始
-                        rtspSurfaceView?.let { surfaceView ->
-                            if (surfaceView.isStarted()) {
-                                surfaceView.stop()
-                            }
 
-                            // 重新初始化连接
-                            val uri = Uri.parse(DEFAULT_RTSP_URL)
-                            surfaceView.init(
-                                uri,
-                                DEFAULT_USERNAME,
-                                DEFAULT_PASSWORD,
-                                "AICamera-RTSP-Client"
-                            )
-                            surfaceView.start(
-                                requestVideo = true,
-                                requestAudio = true,
-                                requestApplication = false
-                            )
-                        }
+            // 设备连接覆盖层
+            if (showConnectionOverlay) {
+                DeviceConnectionOverlay(
+                    status = connectionStatus,
+                    onConnectClick = { handleDeviceConnection() },
+                    onOpenWifiSettings = { wifiConnectionManager.openWifiSettings() },
+                    onDismiss = { 
+                        showConnectionOverlay = false
+                        userDismissedOverlay = true // 标记用户手动关闭
                     },
-                    text = stringResource(R.string.retry),
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(0.dp),
-                    containerColor = Color(0xFF4CAF50)
+                    onResetStatus = { connectionStatus = ConnectionStatus.NOT_STARTED }
                 )
             }
         }

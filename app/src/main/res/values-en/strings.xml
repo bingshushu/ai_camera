@@ -67,4 +67,48 @@
     <string name="model_update_failed">Algorithm update failed</string>
     <string name="model_detection_failed">Detection failed: %s</string>
     <string name="detecting">Detecting...</string>
+
+    <!-- Device Connection -->
+    <string name="product_image">Product Image</string>
+    <string name="connect_device">Connect Device</string>
+    <string name="device_connecting_wait">Connecting to device, please wait</string>
+    <string name="device_keep_on">Please keep the device powered on</string>
+    <string name="device_not_connected">Device Not Connected</string>
+    <string name="device_connected">Device Connected</string>
+    <string name="checking_wifi">Checking Wi-Fi status...</string>
+    <string name="wifi_not_connected">Wi-Fi Not Connected</string>
+    <string name="connecting_rtsp">Connecting to device...</string>
+    <string name="rtsp_connection_failed">Device Connection Failed</string>
+    <string name="wifi_mismatch">Wi-Fi Mismatch</string>
+    <string name="scanning_wifi">Scanning Wi-Fi...</string>
+    <string name="connecting_wifi">Connecting to Wi-Fi...</string>
+    <string name="wifi_connection_failed">Wi-Fi Connection Failed</string>
+    <string name="wifi_not_found">Wi-Fi Not Found</string>
+    <string name="open_wifi_settings">Open Wi-Fi Settings</string>
+    <string name="error_wifi_not_connected">Please connect to Wi-Fi first</string>
+    <string name="error_rtsp_failed">Cannot connect to device, please check if device is powered on</string>
+    <string name="error_wifi_mismatch">Current Wi-Fi is not device Wi-Fi, searching...</string>
+    <string name="error_wifi_connection_failed">Wi-Fi connection failed, please connect manually</string>
+    <string name="error_wifi_not_found">Device Wi-Fi not found (IPCAM-xxxxxx), please check if device is powered on</string>
+    <string name="no_wifi_dialog_message">Device is not connected to Wi-Fi. Please go to system settings to connect to Wi-Fi and try again</string>
+
+    <!-- Model Update in Settings -->
+    <string name="check_model_update">Check Algorithm Update</string>
+    <string name="check_model_update_description">Manually check and update algorithm model</string>
+    <string name="current_version">Current version: %d</string>
+    <string name="model_already_latest">Already up to date</string>
+    <string name="check_update_failed">Check update failed, please try again later</string>
+    <string name="model_update_available_message">New version v%d available. Update now?</string>
+
+    <!-- Laser Zero Focus -->
+    <string name="laser_zero_focus">Laser Zero Focus</string>
+    <string name="laser_zero_focus_instruction">Please confirm the accurate parameters of collimation and focus, fix the device and change the focus to confirm the focus position when the red light is minimum</string>
+    <string name="collimation_param">Collimation Parameter</string>
+    <string name="focus_param">Focus Parameter</string>
+    <string name="min_red_light_focus">Min Red Light Focus</string>
+    <string name="laser_zero_focus_result">Laser Zero Focus</string>
+    <string name="default_value_100">Default: 100</string>
+    <string name="default_value_200">Default: 200</string>
+    <string name="please_input">Please input</string>
+    <string name="theoretical_value_reference">Theoretical value for reference only</string>
 </resources>

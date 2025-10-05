@@ -12,6 +12,7 @@ import com.ai.bb.camera.ui.theme.AICameraTheme
 
 class SettingsActivity : AppCompatActivity() {
     private lateinit var settingsManager: SettingsManager
+    private lateinit var modelUpdateManager: ModelUpdateManager
     
     override fun attachBaseContext(newBase: Context) {
         val settingsManager = AICameraApplication.getSettingsManager(newBase)
@@ -22,9 +23,10 @@ class SettingsActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         settingsManager = AICameraApplication.getSettingsManager(this)
-        
+        modelUpdateManager = ModelUpdateManager(this)
+
         setContent {
             AICameraTheme {
                 Surface(
@@ -33,6 +35,7 @@ class SettingsActivity : AppCompatActivity() {
                 ) {
                     SettingsScreen(
                         settingsManager = settingsManager,
+                        modelUpdateManager = modelUpdateManager,
                         onNavigateBack = { finish() }
                     )
                 }

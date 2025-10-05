@@ -19,15 +19,26 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
+    modelUpdateManager: ModelUpdateManager,
     onNavigateBack: () -> Unit
 ) {
     val settings by settingsManager.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // 模型更新相关状态
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var showProgressDialog by remember { mutableStateOf(false) }
+    var updateVersionInfo by remember { mutableStateOf<ModelVersionInfo?>(null) }
+    var downloadProgress by remember { mutableIntStateOf(0) }
+    var updateMessage by remember { mutableStateOf("") }
     
     Scaffold(
         topBar = {
@@ -133,7 +144,141 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            // 模型更新选项
+            item {
+                SettingItem(
+                    title = stringResource(R.string.check_model_update),
+                    description = stringResource(R.string.check_model_update_description),
+                    onClick = {
+                        if (!isCheckingUpdate) {
+                            isCheckingUpdate = true
+                            scope.launch {
+                                try {
+                                    val versionInfo = modelUpdateManager.checkForUpdate()
+                                    if (versionInfo != null) {
+                                        updateVersionInfo = versionInfo
+                                        showUpdateDialog = true
+                                    } else {
+                                        updateMessage = context.getString(R.string.model_already_latest)
+                                        showUpdateDialog = true
+                                    }
+                                } catch (e: Exception) {
+                                    updateMessage = context.getString(R.string.check_update_failed)
+                                    showUpdateDialog = true
+                                } finally {
+                                    isCheckingUpdate = false
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    if (isCheckingUpdate) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.current_version, modelUpdateManager.getCurrentModelVersion()),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    // 模型更新确认对话框
+    if (showUpdateDialog && updateVersionInfo != null) {
+        AlertDialog(
+            onDismissRequest = { showUpdateDialog = false },
+            title = { Text(stringResource(R.string.model_update_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.model_update_available_message,
+                        updateVersionInfo!!.version
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showUpdateDialog = false
+                        showProgressDialog = true
+                        downloadProgress = 0
+
+                        scope.launch {
+                            val success = modelUpdateManager.downloadModel(updateVersionInfo!!) { progress ->
+                                downloadProgress = progress
+                            }
+
+                            showProgressDialog = false
+                            updateMessage = if (success) {
+                                context.getString(R.string.model_update_success)
+                            } else {
+                                context.getString(R.string.model_update_failed)
+                            }
+                            updateVersionInfo = null
+                            showUpdateDialog = true
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.model_update_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUpdateDialog = false }) {
+                    Text(stringResource(R.string.model_update_cancel))
+                }
+            }
+        )
+    }
+
+    // 无更新或错误提示对话框
+    if (showUpdateDialog && updateVersionInfo == null && updateMessage.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = {
+                showUpdateDialog = false
+                updateMessage = ""
+            },
+            title = { Text(stringResource(R.string.model_update_title)) },
+            text = { Text(updateMessage) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showUpdateDialog = false
+                        updateMessage = ""
+                    }
+                ) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            }
+        )
+    }
+
+    // 下载进度对话框
+    if (showProgressDialog) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text(stringResource(R.string.model_download_title)) },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.model_downloading_progress, downloadProgress))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    LinearProgressIndicator(
+                        progress = { downloadProgress / 100f },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = { }
+        )
     }
 }
 

@@ -6,6 +6,15 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- Wi-Fi相关权限 -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
         android:name=".AICameraApplication"
         android:allowBackup="true"
@@ -35,6 +44,13 @@
             android:screenOrientation="landscape"
             android:theme="@style/Theme.AICamera"
             android:label="@string/settings" />
+
+        <activity
+            android:name=".LaserZeroFocusActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.AICamera"
+            android:label="@string/laser_zero_focus" />
     </application>
 
 </manifest>
