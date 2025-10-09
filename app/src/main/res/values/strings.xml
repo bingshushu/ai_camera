@@ -45,6 +45,7 @@
     
     <!-- Toast Messages -->
     <string name="permission_storage_required">保存截图需要存储权限</string>
+    <string name="wifi_permission_required">扫描Wi-Fi需要位置权限</string>
     <string name="test_image_load_failed">加载测试图片失败</string>
     <string name="capture_failed">截图失败</string>
     <string name="rtsp_not_connected">RTSP未连接</string>
@@ -82,12 +83,14 @@
     <string name="wifi_mismatch">Wi-Fi未匹配</string>
     <string name="scanning_wifi">扫描Wi-Fi中...</string>
     <string name="connecting_wifi">连接Wi-Fi中...</string>
+    <string name="waiting_user_connect">请在Wi-Fi设置中手动连接</string>
     <string name="wifi_connection_failed">Wi-Fi连接失败</string>
     <string name="wifi_not_found">未找到匹配的Wi-Fi</string>
     <string name="open_wifi_settings">打开Wi-Fi设置</string>
     <string name="error_wifi_not_connected">请先连接Wi-Fi网络</string>
     <string name="error_rtsp_failed">无法连接到设备，请检查设备是否开机</string>
     <string name="error_wifi_mismatch">当前Wi-Fi不是设备Wi-Fi，正在搜索...</string>
+    <string name="error_waiting_user_connect">已打开Wi-Fi设置，请选择IPCAM-xxxxxx并连接</string>
     <string name="error_wifi_connection_failed">Wi-Fi连接失败，请手动连接</string>
     <string name="error_wifi_not_found">未找到设备Wi-Fi (IPCAM-xxxxxx)，请检查设备是否开机</string>
     <string name="no_wifi_dialog_message">当前设备未连接Wi-Fi，请前往系统设置连接Wi-Fi后重试</string>

@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.bb.camera.ui.theme.AICameraTheme
 import kotlin.math.pow
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.displayCutoutPadding
 
 class LaserZeroFocusActivity : AppCompatActivity() {
 
@@ -103,11 +105,13 @@ fun LaserZeroFocusScreen(onNavigateBack: () -> Unit) {
             .fillMaxSize()
             .background(Color(0xFF1A1A1A)) // 暗黑色背景
     ) {
-        // 关闭按钮 - 右上角
+        // 关闭按钮 - 右上角，添加安全区域padding避开刘海
         IconButton(
             onClick = onNavigateBack,
             modifier = Modifier
                 .align(Alignment.TopEnd)
+                .systemBarsPadding()
+                .displayCutoutPadding()
                 .padding(16.dp)
         ) {
             Icon(
@@ -121,6 +125,8 @@ fun LaserZeroFocusScreen(onNavigateBack: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .systemBarsPadding()
+                .displayCutoutPadding()
                 .padding(24.dp)
                 .padding(top = 48.dp), // 为关闭按钮留出空间
             verticalArrangement = Arrangement.spacedBy(32.dp)

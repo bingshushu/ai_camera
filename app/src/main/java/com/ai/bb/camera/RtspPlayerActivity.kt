@@ -36,6 +36,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -84,6 +86,9 @@ class RtspPlayerActivity : AppCompatActivity() {
     private lateinit var modelUpdateManager: ModelUpdateManager
     private var windowInsetsController: WindowInsetsControllerCompat? = null
     private lateinit var wifiConnectionManager: WifiConnectionManager
+    
+    // 用于触发WiFi连接流程的标志
+    private var shouldTriggerWifiConnection = mutableStateOf(false)
 
     override fun attachBaseContext(newBase: Context) {
         val settingsManager = AICameraApplication.getSettingsManager(newBase)
@@ -92,7 +97,7 @@ class RtspPlayerActivity : AppCompatActivity() {
         super.attachBaseContext(updatedContext)
     }
 
-    // Permission request launcher
+    // Permission request launcher for storage
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -105,12 +110,32 @@ class RtspPlayerActivity : AppCompatActivity() {
             ).show()
         }
     }
+    
+    // Permission request launcher for WiFi
+    private val wifiPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (allGranted) {
+            // 权限授予后，触发连接流程
+            shouldTriggerWifiConnection.value = true
+        } else {
+            Toast.makeText(
+                this,
+                getString(R.string.wifi_permission_required),
+                Toast.LENGTH_LONG
+            ).show()
+            Log.w(TAG, "Wi-Fi permissions denied: $permissions")
+        }
+    }
 
     companion object {
         private const val TAG = "RtspPlayerActivity"
         private const val DEFAULT_RTSP_URL = "rtsp://192.168.1.88/11"
-        private const val DEFAULT_USERNAME = "keel2025"
-        private const val DEFAULT_PASSWORD = "xiaobailong2012"
+//        private const val DEFAULT_USERNAME = "keel2025"
+//        private const val DEFAULT_PASSWORD = "xiaobailong2012"
+        private const val DEFAULT_USERNAME = "admin"
+        private const val DEFAULT_PASSWORD = "admin"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -183,9 +208,9 @@ class RtspPlayerActivity : AppCompatActivity() {
 
     @Composable
     fun RtspPlayerScreen() {
-        var isLoading by remember { mutableStateOf(false) }
+        var isLoading by remember { mutableStateOf(true) }  // 初始为true，因为页面打开就开始连接
         val context = LocalContext.current
-        var statusText by remember { mutableStateOf(context.getString(R.string.disconnected)) }
+        var statusText by remember { mutableStateOf(context.getString(R.string.connecting)) }
         val settings by settingsManager.settings.collectAsStateWithLifecycle()
         var overlayBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
         var overlaySize by remember { mutableStateOf(IntSize(0, 0)) }
@@ -216,8 +241,26 @@ class RtspPlayerActivity : AppCompatActivity() {
         // 检查是否需要显示Wi-Fi引导
         fun checkAndShowWifiGuide() {
             if (!isConnected && hasTriedRtspConnection && !userDismissedOverlay) {
-                // RTSP连不通，且用户未手动关闭，显示引导画面
-                showConnectionOverlay = true
+                // RTSP连不通，检查Wi-Fi状态
+                lifecycleScope.launch {
+                    val isWifiConnected = wifiConnectionManager.isConnectedToWifi()
+                    val isCorrectWifi = wifiConnectionManager.isCurrentSsidMatchIPCAM()
+                    
+                    Log.d(TAG, "checkAndShowWifiGuide - isWifiConnected: $isWifiConnected, isCorrectWifi: $isCorrectWifi")
+                    
+                    if (!isWifiConnected) {
+                        // 未连接Wi-Fi
+                        Log.i(TAG, "Not connected to Wi-Fi, showing guide")
+                        showConnectionOverlay = true
+                    } else if (!isCorrectWifi) {
+                        // 连接了Wi-Fi但不是IPCAM网络
+                        Log.i(TAG, "Connected to wrong Wi-Fi, showing guide")
+                        showConnectionOverlay = true
+                    } else {
+                        // 已连接正确的Wi-Fi，不显示引导（可能是其他问题）
+                        Log.i(TAG, "Already connected to correct Wi-Fi, not showing guide")
+                    }
+                }
             }
         }
 
@@ -262,6 +305,13 @@ class RtspPlayerActivity : AppCompatActivity() {
 
         // 设备连接处理函数
         fun handleDeviceConnection() {
+            // 首先检查Wi-Fi权限
+            if (!wifiConnectionManager.hasRequiredPermissions()) {
+                Log.w(TAG, "Missing Wi-Fi permissions, requesting...")
+                wifiPermissionLauncher.launch(wifiConnectionManager.getRequiredPermissions())
+                return
+            }
+            
             lifecycleScope.launch {
                 try {
                     // 1. 检查Wi-Fi是否已连接
@@ -283,24 +333,36 @@ class RtspPlayerActivity : AppCompatActivity() {
                         wifiConnectionManager.scanForIPCAMNetwork { ssid ->
                             if (ssid != null) {
                                 // 4. 找到匹配的Wi-Fi，尝试连接
-                                connectionStatus = ConnectionStatus.CONNECTING_WIFI
+                                Log.i(TAG, "Found IPCAM network: $ssid, initiating connection")
+                                connectionStatus = ConnectionStatus.WAITING_USER_CONNECT
                                 wifiConnectionManager.connectToNetwork(ssid) { success ->
                                     if (success) {
-                                        // 连接成功，重新尝试RTSP
+                                        // Wi-Fi连接成功
+                                        Log.i(TAG, "Wi-Fi connected successfully, preparing to restart RTSP")
                                         connectionStatus = ConnectionStatus.CONNECTED
+                                        
                                         lifecycleScope.launch {
-                                            delay(2000) // 等待Wi-Fi稳定
+                                            delay(3000) // 等待Wi-Fi稳定
+                                            
+                                            // 关闭引导界面
+                                            showConnectionOverlay = false
+                                            userDismissedOverlay = false // 重置标志，以便下次失败时可以再显示
+                                            
                                             // 重启RTSP连接
+                                            Log.i(TAG, "Restarting RTSP connection after Wi-Fi connected")
                                             rtspSurfaceView?.let { surfaceView ->
                                                 if (surfaceView.isStarted()) {
                                                     surfaceView.stop()
+                                                    delay(500) // 等待停止完成
                                                 }
+                                                
                                                 val uri = Uri.parse(DEFAULT_RTSP_URL)
                                                 surfaceView.init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-RTSP-Client")
                                                 surfaceView.start(requestVideo = true, requestAudio = true, requestApplication = false)
                                             }
                                         }
                                     } else {
+                                        Log.e(TAG, "Wi-Fi connection failed")
                                         connectionStatus = ConnectionStatus.WIFI_CONNECTION_FAILED
                                     }
                                 }
@@ -311,14 +373,23 @@ class RtspPlayerActivity : AppCompatActivity() {
                         }
                     } else {
                         // Wi-Fi已匹配，重新尝试RTSP
-                        connectionStatus = ConnectionStatus.CONNECTED
+                        Log.i(TAG, "Wi-Fi already matched IPCAM, restarting RTSP")
+                        connectionStatus = ConnectionStatus.CONNECTING_RTSP
+                        
                         lifecycleScope.launch {
                             delay(1000)
+                            
+                            // 关闭引导界面
+                            showConnectionOverlay = false
+                            userDismissedOverlay = false
+                            
                             // 重启RTSP连接
                             rtspSurfaceView?.let { surfaceView ->
                                 if (surfaceView.isStarted()) {
                                     surfaceView.stop()
+                                    delay(500)
                                 }
+                                
                                 val uri = Uri.parse(DEFAULT_RTSP_URL)
                                 surfaceView.init(uri, DEFAULT_USERNAME, DEFAULT_PASSWORD, "AICamera-RTSP-Client")
                                 surfaceView.start(requestVideo = true, requestAudio = true, requestApplication = false)
@@ -329,6 +400,14 @@ class RtspPlayerActivity : AppCompatActivity() {
                     Log.e(TAG, "设备连接过程出错", e)
                     connectionStatus = ConnectionStatus.WIFI_NOT_CONNECTED
                 }
+            }
+        }
+        
+        // 监听WiFi权限授予后的触发
+        LaunchedEffect(shouldTriggerWifiConnection.value) {
+            if (shouldTriggerWifiConnection.value) {
+                shouldTriggerWifiConnection.value = false // 重置标志
+                handleDeviceConnection()
             }
         }
 
@@ -362,6 +441,13 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 isConnected = true
                                 hasStreamIssue = false
                                 hasTriedRtspConnection = true
+                                
+                                // RTSP连接成功，关闭引导界面
+                                if (showConnectionOverlay) {
+                                    Log.i(TAG, "RTSP connected successfully, closing Wi-Fi guide overlay")
+                                    showConnectionOverlay = false
+                                    userDismissedOverlay = false // 重置标志，允许下次失败时再显示
+                                }
                             }
 
                             override fun onRtspStatusDisconnecting() {
@@ -403,9 +489,16 @@ class RtspPlayerActivity : AppCompatActivity() {
                             }
 
                             override fun onRtspFirstFrameRendered() {
-                                Log.i(TAG, "First frame rendered")
+                                Log.i(TAG, "First frame rendered - RTSP streaming successfully")
                                 statusText = context.getString(R.string.playing)
                                 hasStreamIssue = false
+                                
+                                // 首帧渲染成功，确保关闭引导界面
+                                if (showConnectionOverlay) {
+                                    Log.i(TAG, "First frame rendered, closing Wi-Fi guide overlay")
+                                    showConnectionOverlay = false
+                                    userDismissedOverlay = false
+                                }
                             }
 
                             override fun onRtspFrameSizeChanged(width: Int, height: Int) {
@@ -650,16 +743,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                 }
             }
 
-            // Status text
-            Text(
-                text = statusText,
-                color = Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp)
-            )
-
-            // 设置按钮 - 右上角蓝色
+            // 设置按钮 - 右上角蓝色，添加安全区域padding避开刘海
             SmartActionButton(
                 onClick = {
                     val intent = Intent(context, SettingsActivity::class.java)
@@ -668,6 +752,8 @@ class RtspPlayerActivity : AppCompatActivity() {
                 text = stringResource(R.string.settings),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
+                    .systemBarsPadding()
+                    .displayCutoutPadding()
                     .padding(0.dp)
                     .height(48.dp)
                     .width(120.dp),
@@ -675,27 +761,34 @@ class RtspPlayerActivity : AppCompatActivity() {
             )
 
 
-            // Floating screenshot button
-            SmartActionButton(
-                onClick = { takeScreenshot() },
-                text = stringResource(R.string.screenshot),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(0.dp)
-                    .height(48.dp)
-                    .width(120.dp),
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-
-            // 右侧按钮组 - 垂直居中
-            Column(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 0.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 喷嘴确认按钮 - 默认高级灰色，点击后绿色
+            // Floating screenshot button - 添加底部安全区域padding，只在连接时显示
+            if (isConnected) {
                 SmartActionButton(
+                    onClick = { takeScreenshot() },
+                    text = stringResource(R.string.screenshot),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .systemBarsPadding()
+                        .displayCutoutPadding()
+                        .padding(0.dp)
+                        .height(48.dp)
+                        .width(120.dp),
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // 右侧按钮组 - 垂直居中，添加右侧安全区域padding，只在连接时显示
+            if (isConnected) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .systemBarsPadding()
+                        .displayCutoutPadding()
+                        .padding(end = 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 喷嘴确认按钮 - 默认高级灰色，点击后绿色
+                    SmartActionButton(
                     onClick = {
                         if (isDetecting) return@SmartActionButton // 检测中时忽略点击
                         
@@ -859,10 +952,11 @@ class RtspPlayerActivity : AppCompatActivity() {
                     containerColor = if (isRedLightAligned) Color(0xFFF44336) else Color(0xFF6C6C6C), // 红色或高级灰色
                     contentColor = Color.White
                 )
+                }
             }
 
 
-            // 激光零焦按钮 - 左侧垂直居中
+            // 激光零焦按钮 - 左侧垂直居中，添加左侧安全区域padding
             SmartActionButton(
                 onClick = {
                     val intent = Intent(context, LaserZeroFocusActivity::class.java)
@@ -871,6 +965,8 @@ class RtspPlayerActivity : AppCompatActivity() {
                 text = stringResource(R.string.laser_zero_focus),
                 modifier = Modifier
                     .align(Alignment.CenterStart)
+                    .systemBarsPadding()
+                    .displayCutoutPadding()
                     .padding(start = 0.dp)
                     .width(120.dp)
                     .height(48.dp),
@@ -1079,6 +1175,7 @@ class RtspPlayerActivity : AppCompatActivity() {
         rtspSurfaceView = null
         detector?.close()
         detector = null
+        wifiConnectionManager.cleanup()
     }
 
     private fun checkForModelUpdate() {
@@ -1184,6 +1281,16 @@ class RtspPlayerActivity : AppCompatActivity() {
         
         // Restore fullscreen mode
         enterFullscreen()
+        
+        // 检查是否正在等待用户连接Wi-Fi
+        if (wifiConnectionManager.isMonitoringConnection()) {
+            val targetSsid = wifiConnectionManager.getTargetSsid()
+            val currentSsid = wifiConnectionManager.getCurrentSsid()
+            Log.d(TAG, "onResume: Monitoring Wi-Fi - Target: $targetSsid, Current: $currentSsid")
+            
+            // 如果当前连接的不是目标Wi-Fi，手动触发检查
+            // BroadcastReceiver会自动处理连接状态变化
+        }
         
         rtspSurfaceView?.takeIf { !it.isStarted() }?.let {
             it.start(requestVideo = true, requestAudio = true, requestApplication = false)

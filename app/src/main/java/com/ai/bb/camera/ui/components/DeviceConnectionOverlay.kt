@@ -18,6 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ai.bb.camera.R
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.displayCutoutPadding
 
 enum class ConnectionStatus {
     NOT_STARTED,
@@ -28,6 +31,7 @@ enum class ConnectionStatus {
     WIFI_MISMATCH,
     SCANNING_WIFI,
     CONNECTING_WIFI,
+    WAITING_USER_CONNECT,  // 等待用户在设置中手动连接
     WIFI_CONNECTION_FAILED,
     CONNECTED,
     ASK_OPEN_SETTINGS
@@ -44,6 +48,7 @@ fun getStatusText(status: ConnectionStatus): String {
         ConnectionStatus.WIFI_MISMATCH -> stringResource(R.string.wifi_mismatch)
         ConnectionStatus.SCANNING_WIFI -> stringResource(R.string.scanning_wifi)
         ConnectionStatus.CONNECTING_WIFI -> stringResource(R.string.connecting_wifi)
+        ConnectionStatus.WAITING_USER_CONNECT -> stringResource(R.string.waiting_user_connect)
         ConnectionStatus.WIFI_CONNECTION_FAILED -> stringResource(R.string.wifi_connection_failed)
         ConnectionStatus.CONNECTED -> stringResource(R.string.device_connected)
         ConnectionStatus.ASK_OPEN_SETTINGS -> stringResource(R.string.wifi_not_found)
@@ -56,6 +61,7 @@ fun getErrorMessage(status: ConnectionStatus): String {
         ConnectionStatus.WIFI_NOT_CONNECTED -> stringResource(R.string.error_wifi_not_connected)
         ConnectionStatus.RTSP_FAILED -> stringResource(R.string.error_rtsp_failed)
         ConnectionStatus.WIFI_MISMATCH -> stringResource(R.string.error_wifi_mismatch)
+        ConnectionStatus.WAITING_USER_CONNECT -> stringResource(R.string.error_waiting_user_connect)
         ConnectionStatus.WIFI_CONNECTION_FAILED -> stringResource(R.string.error_wifi_connection_failed)
         ConnectionStatus.ASK_OPEN_SETTINGS -> stringResource(R.string.error_wifi_not_found)
         else -> ""
@@ -88,7 +94,8 @@ fun DeviceConnectionOverlay(
             status == ConnectionStatus.SCANNING_WIFI ||
             status == ConnectionStatus.CONNECTING_WIFI
         ) {
-            while (true) {
+            // 使用isActive检查协程是否仍然活跃
+            while (isActive) {
                 delay(3000)
                 waitingMessageIndex = (waitingMessageIndex + 1) % waitingMessages.size
             }
@@ -97,19 +104,29 @@ fun DeviceConnectionOverlay(
 
     // 假进度条动画
     var progress by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(status) {
-        if (status == ConnectionStatus.CHECKING_WIFI ||
+    
+    // 判断当前是否应该显示进度条
+    val shouldShowProgress = status == ConnectionStatus.CHECKING_WIFI ||
             status == ConnectionStatus.CONNECTING_RTSP ||
             status == ConnectionStatus.SCANNING_WIFI ||
             status == ConnectionStatus.CONNECTING_WIFI
-        ) {
+    
+    // 状态改变时立即重置进度
+    LaunchedEffect(shouldShowProgress) {
+        if (!shouldShowProgress) {
             progress = 0f
-            while (progress < 1f) {
+        }
+    }
+    
+    // 进度条动画
+    LaunchedEffect(status) {
+        if (shouldShowProgress) {
+            progress = 0f
+            // 使用isActive检查协程是否仍然活跃（状态改变时会自动取消）
+            while (progress < 1f && isActive) {
                 delay(100)
                 progress += 0.01f
             }
-        } else {
-            progress = 0f
         }
     }
 
@@ -126,11 +143,13 @@ fun DeviceConnectionOverlay(
             .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        // 关闭按钮 - 右上角
+        // 关闭按钮 - 右上角，添加安全区域padding避开刘海
         IconButton(
             onClick = onDismiss,
             modifier = Modifier
                 .align(Alignment.TopEnd)
+                .systemBarsPadding()
+                .displayCutoutPadding()
                 .padding(16.dp)
         ) {
             Icon(
@@ -141,10 +160,12 @@ fun DeviceConnectionOverlay(
             )
         }
 
-        // 左右布局
+        // 左右布局 - 添加安全区域padding避免被刘海遮挡
         Row(
             modifier = Modifier
                 .fillMaxSize()
+                .systemBarsPadding()
+                .displayCutoutPadding()
                 .padding(32.dp),
             horizontalArrangement = Arrangement.spacedBy(48.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -185,7 +206,8 @@ fun DeviceConnectionOverlay(
                     ConnectionStatus.CHECKING_WIFI,
                     ConnectionStatus.CONNECTING_RTSP,
                     ConnectionStatus.SCANNING_WIFI,
-                    ConnectionStatus.CONNECTING_WIFI -> {
+                    ConnectionStatus.CONNECTING_WIFI,
+                    ConnectionStatus.WAITING_USER_CONNECT -> {
                         // 假进度条
                         LinearProgressIndicator(
                             progress = { progress },
