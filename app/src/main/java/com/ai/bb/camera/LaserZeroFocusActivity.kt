@@ -143,11 +143,13 @@ fun LaserZeroFocusScreen(onNavigateBack: () -> Unit) {
             // 第二行：三列布局
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally)
+                horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 // 第一列：准直参数和聚焦参数
                 Column(
                     verticalArrangement = Arrangement.spacedBy(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.weight(1f)
                 ) {
                     // 准直参数
@@ -181,6 +183,13 @@ fun LaserZeroFocusScreen(onNavigateBack: () -> Unit) {
                         onValueChange = { minRedLightFocus = it },
                         hint = stringResource(R.string.please_input),
                         isDarkTheme = true
+                    )
+
+                    // 占位空间，与第三列的提示文字对齐
+                    Text(
+                        text = "",
+                        fontSize = 12.sp,
+                        color = Color.Transparent
                     )
                 }
 

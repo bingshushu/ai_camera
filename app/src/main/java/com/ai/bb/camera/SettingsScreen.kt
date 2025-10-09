@@ -1,6 +1,7 @@
 package com.ai.bb.camera
 
 import android.app.Activity
+import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +10,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -111,7 +113,25 @@ fun SettingsScreen(
                     )
                 }
             }
-            
+
+            // 激光零焦
+            item {
+                SettingItem(
+                    title = stringResource(R.string.laser_zero_focus),
+                    description = stringResource(R.string.laser_zero_focus_instruction),
+                    onClick = {
+                        val intent = Intent(context, LaserZeroFocusActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowForward,
+                        contentDescription = "Open",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             // Language Selection
             item {
                 var showLanguageDialog by remember { mutableStateOf(false) }

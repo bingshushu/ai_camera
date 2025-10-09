@@ -48,7 +48,7 @@ fun ActionButton(
             Text(
                 text = text,
                 color = contentColor,
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,

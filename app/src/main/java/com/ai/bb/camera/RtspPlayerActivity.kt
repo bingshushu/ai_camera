@@ -955,25 +955,6 @@ class RtspPlayerActivity : AppCompatActivity() {
                 }
             }
 
-
-            // 激光零焦按钮 - 左侧垂直居中，添加左侧安全区域padding
-            SmartActionButton(
-                onClick = {
-                    val intent = Intent(context, LaserZeroFocusActivity::class.java)
-                    startActivity(intent)
-                },
-                text = stringResource(R.string.laser_zero_focus),
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .systemBarsPadding()
-                    .displayCutoutPadding()
-                    .padding(start = 0.dp)
-                    .width(120.dp)
-                    .height(48.dp),
-                containerColor = Color(0xFF9C27B0) // 紫色
-            )
-
-
             // 设备连接覆盖层
             if (showConnectionOverlay) {
                 DeviceConnectionOverlay(

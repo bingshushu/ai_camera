@@ -90,6 +90,7 @@ fun DeviceConnectionOverlay(
     // 切换等待消息
     LaunchedEffect(status) {
         if (status == ConnectionStatus.CHECKING_WIFI ||
+            status == ConnectionStatus.WIFI_MISMATCH ||
             status == ConnectionStatus.CONNECTING_RTSP ||
             status == ConnectionStatus.SCANNING_WIFI ||
             status == ConnectionStatus.CONNECTING_WIFI
@@ -104,29 +105,25 @@ fun DeviceConnectionOverlay(
 
     // 假进度条动画
     var progress by remember { mutableFloatStateOf(0f) }
-    
+
     // 判断当前是否应该显示进度条
     val shouldShowProgress = status == ConnectionStatus.CHECKING_WIFI ||
+            status == ConnectionStatus.WIFI_MISMATCH ||
             status == ConnectionStatus.CONNECTING_RTSP ||
             status == ConnectionStatus.SCANNING_WIFI ||
             status == ConnectionStatus.CONNECTING_WIFI
-    
-    // 状态改变时立即重置进度
+
+    // 进度条动画 - 只在shouldShowProgress为true时运行，状态改变时自动重启
     LaunchedEffect(shouldShowProgress) {
-        if (!shouldShowProgress) {
-            progress = 0f
-        }
-    }
-    
-    // 进度条动画
-    LaunchedEffect(status) {
         if (shouldShowProgress) {
             progress = 0f
-            // 使用isActive检查协程是否仍然活跃（状态改变时会自动取消）
+            // 使用isActive检查协程是否仍然活跃
             while (progress < 1f && isActive) {
                 delay(100)
                 progress += 0.01f
             }
+        } else {
+            progress = 0f
         }
     }
 
@@ -193,9 +190,23 @@ fun DeviceConnectionOverlay(
                 verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically)
             ) {
 
-                // 连接状态文字
+                // 连接状态文字 - 简化为两种展示状态
+                val displayText = when (status) {
+                    ConnectionStatus.NOT_STARTED,
+                    ConnectionStatus.WIFI_CONNECTION_FAILED -> stringResource(R.string.device_not_connected)
+
+                    ConnectionStatus.CHECKING_WIFI,
+                    ConnectionStatus.WIFI_MISMATCH,
+                    ConnectionStatus.CONNECTING_RTSP,
+                    ConnectionStatus.SCANNING_WIFI,
+                    ConnectionStatus.CONNECTING_WIFI,
+                    ConnectionStatus.WAITING_USER_CONNECT -> stringResource(R.string.connecting)
+
+                    else -> getStatusText(status)
+                }
+
                 Text(
-                    text = getStatusText(status),
+                    text = displayText,
                     color = Color.White,
                     fontSize = 18.sp,
                     textAlign = TextAlign.Center
@@ -204,6 +215,7 @@ fun DeviceConnectionOverlay(
                 // 进度条和等待提示
                 when (status) {
                     ConnectionStatus.CHECKING_WIFI,
+                    ConnectionStatus.WIFI_MISMATCH,
                     ConnectionStatus.CONNECTING_RTSP,
                     ConnectionStatus.SCANNING_WIFI,
                     ConnectionStatus.CONNECTING_WIFI,
@@ -226,7 +238,8 @@ fun DeviceConnectionOverlay(
                         )
                     }
 
-                    ConnectionStatus.NOT_STARTED -> {
+                    ConnectionStatus.NOT_STARTED,
+                    ConnectionStatus.WIFI_CONNECTION_FAILED -> {
                         // 连接设备按钮
                         SmartActionButton(
                             onClick = onConnectClick,
@@ -238,9 +251,12 @@ fun DeviceConnectionOverlay(
                         )
                     }
 
+                    ConnectionStatus.WIFI_MISMATCH -> {
+                        // Wi-Fi不匹配时不显示，直接跳过
+                        // 这些状态会被连接逻辑自动处理，无需展示给用户
+                    }
+
                     ConnectionStatus.RTSP_FAILED,
-                    ConnectionStatus.WIFI_MISMATCH,
-                    ConnectionStatus.WIFI_CONNECTION_FAILED,
                     ConnectionStatus.ASK_OPEN_SETTINGS -> {
                         // 错误提示
                         Text(
