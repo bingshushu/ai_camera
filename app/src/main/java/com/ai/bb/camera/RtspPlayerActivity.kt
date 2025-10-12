@@ -661,7 +661,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                                         val containerW = rtspViewW.value.toFloat()
                                         val containerH = rtspViewH.value.toFloat()
                                         val minScale = baseScale
-                                        val maxScale = baseScale * 3f
+                                        val maxScale = baseScale * 1.5f
                                         val oldScale = imageScale
                                         val newScale = (imageScale * zoom).coerceIn(minScale, maxScale)
                                         
@@ -699,8 +699,6 @@ class RtspPlayerActivity : AppCompatActivity() {
                             }
                     ) {
                         // 绘制圆形 - 在图像坐标空间中绘制，这样它们会一起变换
-                        val strokeWidth = 24f / imageScale  // 根据缩放调整线条宽度，增加粗细
-                        val stroke = Stroke(width = strokeWidth)
                         circles.forEach { c ->
                             // 根据类别选择颜色
                             val circleColor = when (c.className) {
@@ -708,6 +706,10 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 "ROI" -> Color.Green
                                 else -> Color.White
                             }
+
+                             // 计算外圆线条宽度 - 与iOS保持一致：半径的10%，最小1.5pt
+                            val strokeWidth = maxOf(1.5f, c.r * 0.1f)
+                            val stroke = Stroke(width = strokeWidth)
 
                             // 绘制外圆
                             drawCircle(
@@ -722,7 +724,7 @@ class RtspPlayerActivity : AppCompatActivity() {
                                 style = settings.circleCenterStyle,
                                 center = Offset(c.cx, c.cy),
                                 color = circleColor,
-                                scale = imageScale,
+                                scale = 1f,
                                 circleRadius = c.r
                             )
                         }

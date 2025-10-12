@@ -12,7 +12,7 @@ android {
         applicationId = "com.ai.bb.camera"
         minSdk = 24
         targetSdk = 36
-        versionCode = 25
+        versionCode = 28
         versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
