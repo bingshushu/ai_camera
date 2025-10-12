@@ -153,8 +153,6 @@ class RtspPlayerActivity : AppCompatActivity() {
                 RtspPlayerScreen()
             }
         }
-        
-        checkForModelUpdate()
     }
 
     private fun setupFullscreenLandscape() {
@@ -1159,99 +1157,6 @@ class RtspPlayerActivity : AppCompatActivity() {
         detector?.close()
         detector = null
         wifiConnectionManager.cleanup()
-    }
-
-    private fun checkForModelUpdate() {
-        lifecycleScope.launch {
-            try {
-                val versionInfo = modelUpdateManager.checkForUpdate()
-                if (versionInfo != null) {
-                    showUpdateDialog(versionInfo)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "检查模型更新失败", e)
-            }
-        }
-    }
-
-    private fun showUpdateDialog(versionInfo: ModelVersionInfo) {
-        runOnUiThread {
-            val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle(getString(R.string.model_update_title))
-                .setMessage(getString(R.string.model_update_message))
-                .setPositiveButton(getString(R.string.model_update_confirm)) { _, _ ->
-                    startModelDownload(versionInfo)
-                }
-                .setNegativeButton(getString(R.string.model_update_cancel)) { dialog, _ ->
-                    dialog.dismiss()
-                }
-                .setCancelable(false)
-                .create()
-            
-            // Restore fullscreen when dialog is dismissed
-            dialog.setOnDismissListener {
-                restoreFullscreenAfterDialog()
-            }
-            
-            dialog.show()
-        }
-    }
-
-    private fun startModelDownload(versionInfo: ModelVersionInfo) {
-        var progressDialog: androidx.appcompat.app.AlertDialog? = null
-        
-        runOnUiThread {
-            val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_1, null)
-            val textView = dialogView.findViewById<android.widget.TextView>(android.R.id.text1)
-            textView.text = getString(R.string.model_downloading)
-            textView.gravity = android.view.Gravity.CENTER
-            
-            progressDialog = androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle(getString(R.string.model_download_title))
-                .setView(dialogView)
-                .setCancelable(false)
-                .create()
-            
-            // Restore fullscreen when progress dialog is dismissed
-            progressDialog?.setOnDismissListener {
-                restoreFullscreenAfterDialog()
-            }
-            
-            progressDialog?.show()
-        }
-        
-        lifecycleScope.launch {
-            val success = modelUpdateManager.downloadModel(versionInfo) { progress ->
-                runOnUiThread {
-                    progressDialog?.let { dialog ->
-                        val textView = dialog.findViewById<android.widget.TextView>(android.R.id.text1)
-                        textView?.text = getString(R.string.model_downloading_progress, progress)
-                    }
-                }
-            }
-            
-            runOnUiThread {
-                progressDialog?.dismiss()
-                
-                if (success) {
-                    Toast.makeText(this@RtspPlayerActivity, getString(R.string.model_update_success), Toast.LENGTH_SHORT).show()
-                    // 重新初始化检测器以使用新模型
-                    detector?.close()
-                    detector = OnnxCircleDetector(this@RtspPlayerActivity, modelUpdateManager)
-                } else {
-                    Toast.makeText(this@RtspPlayerActivity, getString(R.string.model_update_failed), Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    private fun restoreFullscreenAfterDialog() {
-        // Post with delay to ensure dialog is fully dismissed
-        window.decorView.postDelayed({
-            if (!isFinishing && !isDestroyed) {
-                enterFullscreen()
-            }
-        }, 300) // Slightly longer delay for better stability
     }
 
     override fun onPause() {
