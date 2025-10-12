@@ -24,7 +24,7 @@ class ModelUpdateManager(private val context: Context) {
         private const val PREFS_NAME = "model_update_prefs"
         private const val KEY_MODEL_VERSION = "model_version1"
         private const val DEFAULT_MODEL_VERSION = 1
-        private const val MODEL_FILE_NAME = "latest_model.onnx"
+        private const val MODEL_FILE_NAME = "latest_model1.onnx"
         private const val VERSION_CHECK_URL = "https://lightstart-1376045481.cos.ap-guangzhou.myqcloud.com/ver.json\n" // 请替换为实际的JSON文件URL
     }
 
